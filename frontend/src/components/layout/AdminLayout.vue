@@ -49,7 +49,7 @@ function handleLogout() {
 <template>
   <div class="flex min-h-screen bg-background">
     <!-- Desktop Sidebar -->
-    <aside class="hidden w-64 flex-col border-r border-border bg-card lg:flex">
+    <aside class="hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
       <div class="flex h-16 items-center border-b border-border px-6 text-destructive">
         <BrandLogo size="sm" />
       </div>
@@ -91,7 +91,7 @@ function handleLogout() {
               <Menu class="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" class="w-64 p-0">
+          <SheetContent side="left" class="w-64 bg-sidebar p-0 text-sidebar-foreground">
             <div class="flex h-16 items-center border-b border-border px-6 text-destructive">
               <BrandLogo size="sm" />
             </div>

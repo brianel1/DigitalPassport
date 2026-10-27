@@ -48,7 +48,7 @@ const stats = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
+  <div class="dark min-h-screen bg-background text-foreground">
     <!-- Navigation -->
     <nav class="fixed top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-lg">
       <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">

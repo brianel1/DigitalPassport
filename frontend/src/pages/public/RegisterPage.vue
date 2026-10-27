@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
+import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 
 const router = useRouter()
 const { register } = useAuth()
@@ -31,7 +32,10 @@ function submit() {
 </script>
 
 <template>
-  <main class="min-h-screen bg-[radial-gradient(circle_at_top,_var(--color-primary)/8%,_transparent_35%)] px-6 py-10">
+  <main class="relative min-h-screen bg-[radial-gradient(circle_at_top,_var(--color-primary)/8%,_transparent_35%)] px-6 py-10">
+    <div class="absolute right-6 top-6">
+      <ThemeToggle />
+    </div>
     <div class="mx-auto w-full max-w-2xl">
       <RouterLink to="/" class="mb-8 flex justify-center text-primary"><BrandLogo size="sm" /></RouterLink>
 

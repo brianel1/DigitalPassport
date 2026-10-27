@@ -13,6 +13,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { ClipboardCheck, Gauge, ListChecks, LogOut, Menu } from '@lucide/vue'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
+import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 
 const { user, logout } = useAuth()
 const route = useRoute()
@@ -117,6 +118,7 @@ function handleLogout() {
         </div>
 
         <div class="ml-auto flex items-center gap-3">
+          <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="ghost" class="flex items-center gap-2">

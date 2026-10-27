@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   BarChart3,
   FileText,
-  Sparkles,
   BrainCircuit,
   ChevronRight,
 } from '@lucide/vue'
@@ -80,16 +79,28 @@ const steps = [
         <div class="absolute left-1/4 top-0 h-[600px] w-[600px] rounded-full bg-indigo-600/15 blur-[128px]"></div>
         <div class="absolute right-0 top-1/4 h-[400px] w-[500px] rounded-full bg-violet-600/10 blur-[100px]"></div>
         <div class="absolute bottom-0 left-0 h-[300px] w-[400px] rounded-full bg-cyan-600/8 blur-[100px]"></div>
-        <!-- Grid pattern -->
-        <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
+        <!-- Decorative shapes -->
+        <svg class="absolute right-[-5%] top-[10%] h-[500px] w-[500px] opacity-[0.04]" viewBox="0 0 400 400" fill="none">
+          <circle cx="200" cy="200" r="180" stroke="currentColor" stroke-width="0.5" class="text-indigo-300" />
+          <circle cx="200" cy="200" r="130" stroke="currentColor" stroke-width="0.5" class="text-violet-300" />
+          <circle cx="200" cy="200" r="80" stroke="currentColor" stroke-width="0.5" class="text-cyan-300" />
+        </svg>
+        <svg class="absolute -left-[10%] bottom-[5%] h-[400px] w-[400px] opacity-[0.03]" viewBox="0 0 400 400" fill="none">
+          <path d="M50 200 Q200 50 350 200 Q200 350 50 200Z" stroke="currentColor" stroke-width="0.8" class="text-indigo-300" />
+          <path d="M100 200 Q200 100 300 200 Q200 300 100 200Z" stroke="currentColor" stroke-width="0.5" class="text-violet-300" />
+        </svg>
+        <!-- Top flowing curve -->
+        <svg class="absolute left-0 top-0 w-full opacity-[0.06]" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path d="M0,160 C360,50 720,280 1080,120 S1440,200 1440,200 L1440,0 L0,0 Z" fill="url(#heroGrad)" />
+          <defs><linearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#818cf8" /><stop offset="50%" stop-color="#a78bfa" /><stop offset="100%" stop-color="#22d3ee" /></linearGradient></defs>
+        </svg>
       </div>
 
       <div class="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:gap-8 lg:py-36">
         <!-- Left: Text content -->
         <div class="flex flex-col justify-center">
-          <div class="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-1.5 text-sm text-indigo-300">
-            <Sparkles class="size-4" />
-            <span>For University Students</span>
+          <div class="mb-6 flex flex-wrap items-center gap-3">
+            <span class="text-xs font-semibold uppercase tracking-[0.2em] text-white">Student Competency Platform</span>
           </div>
 
           <h1 class="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.5rem]">
@@ -153,10 +164,17 @@ const steps = [
 
     <!-- Features Section -->
     <section class="relative bg-[#060a17] py-24">
-      <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
+      <!-- Soft top divider wave -->
+      <svg class="absolute left-0 top-0 w-full -translate-y-[98%] opacity-100" viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,80 C480,20 960,60 1440,30 L1440,80 Z" fill="#060a17" /></svg>
+      <!-- Decorative ring -->
+      <div class="absolute right-[8%] top-[15%] size-[280px] rounded-full border border-indigo-500/[0.04] opacity-60"></div>
+      <div class="absolute right-[10%] top-[17%] size-[220px] rounded-full border border-violet-500/[0.04] opacity-40"></div>
       <div class="relative mx-auto max-w-7xl px-6">
         <div class="mb-16 text-center">
-          <p class="mb-3 text-sm font-medium uppercase tracking-widest text-indigo-400">Key Features</p>
+          <div class="mb-3 inline-flex items-center gap-2">
+            <span class="h-3 w-1 rounded-full bg-indigo-400"></span>
+            <span class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">Core Capabilities</span>
+          </div>
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Everything you need in one place
           </h2>
@@ -195,9 +213,9 @@ const steps = [
         <div class="grid gap-16 lg:grid-cols-2 lg:items-center">
           <!-- Left: Content -->
           <div>
-            <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 text-sm text-violet-300">
-              <BrainCircuit class="size-4" />
-              <span>AI-Powered</span>
+            <div class="mb-4 flex items-center gap-2.5">
+              <span class="h-4 w-1 rounded-full bg-gradient-to-b from-violet-400 to-indigo-400"></span>
+              <span class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Formative AI Assessment</span>
             </div>
 
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -271,9 +289,12 @@ const steps = [
               </div>
 
               <!-- Footer -->
-              <div class="mt-6 flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-slate-500">
-                <Sparkles class="size-3 text-violet-400" />
-                Powered by Ollama + Qwen3 • Guidance only
+              <div class="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-slate-500">
+                <span class="flex items-center gap-1.5 text-slate-400">
+                  <BrainCircuit class="size-3.5 text-violet-400" />
+                  Local AI Diagnostic
+                </span>
+                <span class="text-[11px] text-slate-500">Formative guidance</span>
               </div>
             </div>
           </div>
@@ -283,7 +304,12 @@ const steps = [
 
     <!-- CTA Section -->
     <section class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-700 py-24">
-      <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
+      <!-- Decorative flowing shapes -->
+      <svg class="absolute left-0 top-0 h-full w-full opacity-[0.08]" viewBox="0 0 1440 400" preserveAspectRatio="none">
+        <path d="M-100,300 Q300,100 600,250 T1200,150 T1600,300" stroke="white" stroke-width="1" fill="none" />
+        <path d="M-100,350 Q400,150 700,280 T1300,180 T1600,350" stroke="white" stroke-width="0.5" fill="none" />
+      </svg>
+      <div class="absolute -left-20 top-1/2 size-[300px] -translate-y-1/2 rounded-full bg-white/5 blur-[80px]"></div>
       <div class="absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-white/5 blur-[100px]"></div>
 
       <div class="relative mx-auto max-w-7xl px-6 text-center">

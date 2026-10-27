@@ -50,7 +50,7 @@ function handleLogout() {
   <div class="flex min-h-screen bg-background">
     <!-- Desktop Sidebar -->
     <aside class="hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
-      <div class="flex h-16 items-center border-b border-border px-6 text-destructive">
+      <div class="flex h-16 items-center border-b border-border px-6 text-primary">
         <BrandLogo size="sm" />
       </div>
 
@@ -92,7 +92,7 @@ function handleLogout() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" class="w-64 bg-sidebar p-0 text-sidebar-foreground">
-            <div class="flex h-16 items-center border-b border-border px-6 text-destructive">
+            <div class="flex h-16 items-center border-b border-border px-6 text-primary">
               <BrandLogo size="sm" />
             </div>
             <nav class="space-y-1 px-3 py-4">

@@ -59,7 +59,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. The frontend forwards `/api` requests to the PHP server at `http://127.0.0.1:8000`. `GET /api/health` is the only API endpoint in this scaffold.
+Open the local URL printed by Vite, usually `http://localhost:5173`. The frontend forwards `/api` requests to the PHP server at `http://127.0.0.1:8000`. `GET /api/health` is the only API endpoint in this scaffold.
 
 ## Git workflow
 

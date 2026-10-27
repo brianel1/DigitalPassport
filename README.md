@@ -1,24 +1,36 @@
 # DigitalPassport
 
-Student Digital Skills Passport for Workshop 2.
+DigitalPassport is a planned web application for university students to record and present their digital skills. Students will be able to maintain a profile, link skills to project and certificate evidence, complete assessments, and view a Digital Skills Passport. Administrators will review submitted evidence and manage assessment content.
 
-## Stack
+This repository currently contains the project setup only. Application code and local run instructions will be added as development begins.
 
-- Backend: PHP with REST API
-- Database: MySQL
-- Frontend: Vue, Tailwind CSS, and shadcn-vue
+## Planned features
+
+- Student and administrator accounts with role-based access.
+- Student profiles, skills, projects, and certifications.
+- Evidence uploads and administrator review with clear record statuses.
+- Predefined assessments with automatic scoring and attempt history.
+- An online passport summary and a downloadable PDF.
+
+## Technology
+
+| Area | Technology |
+| --- | --- |
+| Backend | PHP and a JSON REST API |
+| Database | MySQL |
+| Frontend | Vue, Tailwind CSS, and shadcn-vue |
 
 ## Git workflow
 
-The shared branch is `master`. Each developer works on their own branch. There are no `dev` or `staging` branches.
+`master` is the shared integration branch. Each developer works on their own branch and pushes commits to that branch. The team does not use separate `dev` or `staging` branches.
 
-1. Get the latest `master` before starting work.
-2. Switch to your own branch and bring the latest `master` into it.
-3. Code, commit, and push your branch.
-4. Open a pull request into `master` for review when possible.
-5. Merge approved work into `master`. Everyone then updates from `master` before continuing.
+1. Update your local `master` from the remote repository.
+2. Switch to your branch and merge the updated `master` into it.
+3. Make changes, commit them, and push your branch.
+4. Open a pull request into `master` for review when practical. The team may merge directly when it agrees that review is not needed.
+5. After a merge, all developers update from `master` before continuing work.
 
-For an existing developer branch, the update commands are:
+To update an existing developer branch after the remote repository is connected:
 
 ```bash
 git fetch origin
@@ -28,4 +40,4 @@ git switch YOUR_BRANCH
 git merge master
 ```
 
-Review is recommended, but the team may merge directly into `master` when agreed. Keep `master` working so other developers can pull it safely.
+Resolve any merge conflicts on your branch before pushing. Keep secrets, installed dependencies, and generated files out of commits; see `.gitignore`.

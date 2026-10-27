@@ -1,0 +1,19 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Installed dependencies and build output
+vendor/
+node_modules/
+dist/
+build/
+coverage/
+
+# Runtime and editor files
+uploads/
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

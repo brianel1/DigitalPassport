@@ -46,6 +46,27 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
+@media print {
+  .no-print,
+  aside,
+  header:has(+ main) {
+    display: none !important;
+  }
+
+  body,
+  #app,
+  main {
+    background: white !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #digital-passport {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);

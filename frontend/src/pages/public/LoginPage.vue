@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
+import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 
 const router = useRouter()
 const { login, user } = useAuth()
@@ -54,7 +55,10 @@ function submit() {
       </div>
     </section>
 
-    <main class="flex items-center justify-center bg-background px-6 py-12">
+    <main class="relative flex items-center justify-center bg-background px-6 py-12">
+      <div class="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
       <div class="w-full max-w-md">
         <RouterLink to="/" class="mb-10 text-primary lg:hidden"><BrandLogo size="sm" /></RouterLink>
 

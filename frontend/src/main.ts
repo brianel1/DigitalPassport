@@ -3,6 +3,8 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useAuth } from './composables/useAuth'
+import { useTheme } from './composables/useTheme'
 
 useAuth().restore()
+useTheme().restore()
 createApp(App).use(router).mount('#app')

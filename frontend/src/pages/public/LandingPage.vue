@@ -67,8 +67,9 @@ const stats = [
     <!-- Hero -->
     <section class="relative overflow-hidden pt-16">
       <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent"></div>
-      <div class="absolute -left-32 top-32 size-96 rounded-full bg-primary/10 blur-3xl"></div>
+      <div class="absolute -left-32 top-32 size-96 rounded-full bg-primary/12 blur-3xl"></div>
       <div class="absolute -right-32 top-12 size-[28rem] rounded-full bg-chart-2/10 blur-3xl"></div>
+      <div class="absolute bottom-[-14rem] left-1/3 size-[26rem] rounded-full bg-chart-5/8 blur-3xl"></div>
       <div class="relative mx-auto max-w-6xl px-6 py-24 sm:py-32 lg:py-40">
         <div class="max-w-3xl">
           <Badge variant="secondary" class="mb-6">

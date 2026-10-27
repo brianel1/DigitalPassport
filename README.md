@@ -1,8 +1,8 @@
 # DigitalPassport
 
-DigitalPassport is a planned web application for university students to record and present their digital skills. Students will be able to maintain a profile, link skills to project and certificate evidence, complete assessments, and view a Digital Skills Passport. Administrators will review submitted evidence and manage assessment content.
+DigitalPassport is a web application project for university students to record and present their digital skills. The planned product includes student profiles, evidence-backed skills, assessments, administrator review, and a downloadable Digital Skills Passport.
 
-This repository currently contains the project setup only. Application code and local run instructions will be added as development begins.
+The repository contains a working frontend and API scaffold. Product features and the database schema have not been implemented yet.
 
 ## Planned features
 
@@ -20,6 +20,47 @@ This repository currently contains the project setup only. Application code and 
 | Database | MySQL |
 | Frontend | Vue, Tailwind CSS, and shadcn-vue |
 
+## Repository structure
+
+```text
+backend/
+  public/              API entry point and local server router
+  src/Controllers/     Request handlers
+  src/Database/        MySQL connection setup
+  src/Http/            JSON response and routing helpers
+  database/migrations/ Future database changes
+frontend/
+  src/components/ui/  Reusable shadcn-vue components
+  src/lib/            API client and shared helpers
+  src/pages/          Page components
+  src/router/         Frontend routes
+```
+
+## Run locally
+
+Requirements: PHP 8.2 or later with `pdo_mysql`, Composer, Node.js 22.12 or later, npm, and MySQL for future database-backed features.
+
+From the repository root, start the API in one `cmd` terminal:
+
+```cmd
+cd backend
+composer install
+copy .env.example .env
+composer run serve
+```
+
+Update `backend/.env` with your local MySQL settings. The default database name is `digitalpassport`. Create that database in MySQL before adding database-backed features. The current health endpoint does not require a database connection.
+
+Start the frontend in a second `cmd` terminal:
+
+```cmd
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the local URL printed by Vite, usually `http://localhost:5173`. The frontend forwards `/api` requests to the PHP server at `http://127.0.0.1:8000`. `GET /api/health` is the only API endpoint in this scaffold.
+
 ## Git workflow
 
 `master` is the shared integration branch. Each developer works on their own branch and pushes commits to that branch. The team does not use separate `dev` or `staging` branches.
@@ -32,7 +73,7 @@ This repository currently contains the project setup only. Application code and 
 
 To update an existing developer branch after the remote repository is connected:
 
-```bash
+```cmd
 git fetch origin
 git switch master
 git pull origin master

@@ -65,28 +65,28 @@ const stats = [
     </nav>
 
     <!-- Hero -->
-    <section class="relative overflow-hidden bg-[var(--landing-sage)] pt-16">
+    <section class="relative overflow-hidden bg-[var(--landing-navy)] pt-16 text-white">
       <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/15 via-transparent to-transparent"></div>
       <div class="absolute -left-32 top-32 size-96 rounded-full bg-primary/15 blur-3xl"></div>
-      <div class="absolute -right-32 top-12 size-[28rem] rounded-full bg-chart-4/12 blur-3xl"></div>
+      <div class="absolute -right-32 top-12 size-[28rem] rounded-full bg-chart-2/12 blur-3xl"></div>
       <div class="absolute bottom-[-14rem] left-1/3 size-[26rem] rounded-full bg-chart-5/10 blur-3xl"></div>
       <div class="relative mx-auto max-w-6xl px-6 py-24 sm:py-32 lg:py-40">
         <div class="max-w-3xl">
-          <Badge variant="secondary" class="mb-6">
+          <Badge variant="secondary" class="mb-6 bg-white/90 text-[var(--landing-navy)]">
             <GraduationCap class="mr-1.5 size-4" /> For University Students
           </Badge>
           <h1 class="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Your digital skills,
             <span class="block text-primary">verified and portable.</span>
           </h1>
-          <p class="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          <p class="mt-6 max-w-2xl text-lg leading-relaxed text-white/75">
             DigitalPassport centralizes your skills, projects, certifications, and assessment results into one verified profile. Present your competencies with confidence.
           </p>
           <div class="mt-10 flex flex-wrap gap-4">
             <Button size="lg" as-child>
               <RouterLink to="/register">Create your passport <ArrowUpRight class="ml-1 size-4" /></RouterLink>
             </Button>
-            <Button size="lg" variant="outline" class="text-foreground" as-child>
+            <Button size="lg" variant="ghost" class="text-white hover:bg-white/10 hover:text-white" as-child>
               <RouterLink to="/login">Sign in</RouterLink>
             </Button>
           </div>
@@ -97,11 +97,11 @@ const stats = [
           <div
             v-for="stat in stats"
             :key="stat.label"
-            class="rounded-xl border border-border bg-card/50 p-6 text-center backdrop-blur-sm"
+            class="rounded-xl border border-white/20 bg-white/10 p-6 text-center text-white backdrop-blur-sm"
           >
             <component v-if="typeof stat.value !== 'string'" :is="stat.value" class="mx-auto size-7 text-primary" />
             <p v-else class="text-2xl font-bold text-primary">{{ stat.value }}</p>
-            <p class="mt-1 text-sm text-muted-foreground">{{ stat.label }}</p>
+            <p class="mt-1 text-sm text-white/70">{{ stat.label }}</p>
           </div>
         </div>
       </div>
@@ -135,12 +135,12 @@ const stats = [
     </section>
 
     <!-- CTA -->
-    <section class="bg-[var(--landing-sage-deep)] py-24">
+    <section class="bg-[var(--landing-navy-soft)] py-24 text-white">
       <div class="mx-auto max-w-6xl px-6 text-center">
         <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">
           Ready to build your digital passport?
         </h2>
-        <p class="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+        <p class="mx-auto mt-4 max-w-xl text-lg text-white/75">
           Start documenting your skills today. It only takes a minute to create your profile.
         </p>
         <div class="mt-10">

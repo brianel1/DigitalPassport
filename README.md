@@ -1,10 +1,8 @@
 # DigitalPassport
 
-DigitalPassport is a web application project for university students to record and present their digital skills. The planned product includes student profiles, evidence-backed skills, assessments, administrator review, and a downloadable Digital Skills Passport.
+DigitalPassport is a web application for university students to record and present their digital skills. The system includes student profiles, evidence-backed skills, assessments, administrator review, and a downloadable Digital Skills Passport.
 
-The repository contains a working frontend and API scaffold. Product features and the database schema have not been implemented yet.
-
-## Planned features
+## Planned Features
 
 - Student and administrator accounts with role-based access.
 - Student profiles, skills, projects, and certifications.
@@ -16,42 +14,45 @@ The repository contains a working frontend and API scaffold. Product features an
 
 | Area | Technology |
 | --- | --- |
-| Backend | PHP and a JSON REST API |
+| Backend | Laravel (PHP) REST API with Sanctum authentication |
 | Database | MySQL |
-| Frontend | Vue, Tailwind CSS, and shadcn-vue |
+| Frontend | Vue 3, Tailwind CSS, and shadcn-vue |
 
-## Repository structure
+## Repository Structure
 
 ```text
-backend/
-  public/              API entry point and local server router
-  src/Controllers/     Request handlers
-  src/Database/        MySQL connection setup
-  src/Http/            JSON response and routing helpers
-  database/migrations/ Future database changes
-frontend/
-  src/components/ui/  Reusable shadcn-vue components
-  src/lib/            API client and shared helpers
-  src/pages/          Page components
-  src/router/         Frontend routes
+backend/                    Laravel API backend
+  app/Models/               Eloquent models
+  app/Http/Controllers/     Request handlers
+  database/migrations/      Database schema changes
+  routes/api.php            API route definitions
+  config/                   Application configuration
+frontend/                   Vue frontend
+  src/components/ui/        Reusable shadcn-vue components
+  src/lib/                  API client and shared helpers
+  src/pages/                Page components
+  src/router/               Frontend routes
 ```
 
-## Run locally
+## Run Locally
 
-Requirements: PHP 8.2 or later with `pdo_mysql`, Composer, Node.js 22.12 or later, npm, and MySQL for future database-backed features.
+**Requirements:** PHP 8.2+, Composer, Node.js 22.12+, npm, MySQL (via XAMPP or standalone).
 
-From the repository root, start the API in one `cmd` terminal:
+### Backend (Laravel API)
 
 ```cmd
 cd backend
 composer install
 copy .env.example .env
-composer run serve
+php artisan key:generate
+php artisan migrate
+php artisan serve --port=8000
 ```
 
-Update `backend/.env` with your local MySQL settings. The default database name is `digitalpassport`. Create that database in MySQL before adding database-backed features. The current health endpoint does not require a database connection.
+> Make sure MySQL is running and the `digitalpassport` database exists before running migrations.
+> Update `backend/.env` with your local MySQL credentials if needed.
 
-Start the frontend in a second `cmd` terminal:
+### Frontend (Vue)
 
 ```cmd
 cd frontend
@@ -59,19 +60,24 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, usually `http://localhost:5173`. The frontend forwards `/api` requests to the PHP server at `http://127.0.0.1:8000`. `GET /api/health` is the only API endpoint in this scaffold.
+Open the URL printed by Vite (usually `http://localhost:5173`). The frontend proxies `/api` requests to the Laravel server at `http://127.0.0.1:8000`.
 
-## Git workflow
+### Available API Endpoints
 
-`master` is the shared integration branch. Each developer works on their own branch and pushes commits to that branch. The team does not use separate `dev` or `staging` branches.
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| GET | `/api/health` | No | Health check |
+| GET | `/api/user` | Yes (Sanctum) | Get authenticated user |
+
+## Git Workflow
+
+`master` is the shared integration branch. Each developer works on their own branch.
 
 1. Update your local `master` from the remote repository.
 2. Switch to your branch and merge the updated `master` into it.
 3. Make changes, commit them, and push your branch.
-4. Open a pull request into `master` for review when practical. The team may merge directly when it agrees that review is not needed.
+4. Open a pull request into `master` for review.
 5. After a merge, all developers update from `master` before continuing work.
-
-To update an existing developer branch after the remote repository is connected:
 
 ```cmd
 git fetch origin

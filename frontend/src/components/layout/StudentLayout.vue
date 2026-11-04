@@ -38,6 +38,8 @@ import {
   Menu,
   Sparkles,
   UserRound,
+  BriefcaseBusiness,
+  FileUser,
 } from '@lucide/vue'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
@@ -49,6 +51,8 @@ const navItems = [
   { label: 'Projects', path: '/student/projects', icon: FolderKanban },
   { label: 'Certifications', path: '/student/certifications', icon: Award },
   { label: 'Assessments', path: '/student/assessments', icon: BookOpenCheck },
+  { label: 'Job Matches', path: '/student/jobs', icon: BriefcaseBusiness },
+  { label: 'ATS CV', path: '/student/cv', icon: FileUser },
   { label: 'Passport', path: '/student/passport', icon: IdCard },
 ]
 
@@ -56,8 +60,8 @@ function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-function handleLogout() {
-  logout()
+async function handleLogout() {
+  await logout()
   router.push('/login')
 }
 </script>

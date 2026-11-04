@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
+import { ApiError } from '@/lib/api'
 
 const router = useRouter()
 const { register } = useAuth()
@@ -21,16 +22,17 @@ const form = reactive({
   matricNo: '',
 })
 
-function submit() {
+async function submit() {
   error.value = ''
   submitting.value = true
-  if (!register(form)) {
+  try {
+    await register(form)
+    router.push('/student/dashboard')
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The server could not be reached.'
+  } finally {
     submitting.value = false
-    error.value = 'An account already exists for this email address.'
-    return
   }
-  submitting.value = false
-  router.push('/student/dashboard')
 }
 </script>
 
@@ -70,7 +72,7 @@ function submit() {
           </span>
         </h1>
         <p class="mt-5 text-base leading-relaxed text-slate-400">
-          Register your student passport today. Showcase verified competencies, unlock AI-driven learning paths, and build an accredited digital portfolio.
+          Register your student profile today. Showcase verified competencies, discover suitable jobs, and prepare an ATS friendly CV.
         </p>
 
         <!-- Feature Points -->
@@ -85,7 +87,7 @@ function submit() {
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-400">
               <BrainCircuit class="size-4" />
             </div>
-            <span>AI assessment analysis & personalised pathways</span>
+            <span>AI job matching based on verified skills</span>
           </div>
           <div class="flex items-center gap-3.5 text-sm text-slate-300">
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-500/20 bg-indigo-500/10 text-indigo-400">

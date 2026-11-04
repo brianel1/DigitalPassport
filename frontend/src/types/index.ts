@@ -27,6 +27,7 @@ export interface User {
   name: string
   email: string
   role: UserRole
+  isActive?: boolean
   programme?: string
   matricNo?: string
   avatarUrl?: string
@@ -122,7 +123,9 @@ export interface AssessmentQuestion {
   id: number
   question: string
   options: string[]
-  correctAnswer: number // index of correct option
+  correctOption?: number
+  points?: number
+  position?: number
 }
 
 export interface Assessment {
@@ -133,6 +136,7 @@ export interface Assessment {
   questionCount: number
   timeLimit: number // in minutes
   passingScore: number // percentage
+  isPublished?: boolean
   questions?: AssessmentQuestion[]
 }
 
@@ -154,14 +158,24 @@ export interface AssessmentAttempt {
 
 export interface ReviewItem {
   id: number
-  type: 'project' | 'certification'
+  type: 'project' | 'certification' | 'skill'
   studentName: string
   studentMatricNo: string
   title: string
   submittedAt: string
   status: VerificationStatus
-  evidenceFiles: string[]
-  details: Project | Certification
+  evidenceFiles: EvidenceFileSummary[]
+  reviewerName?: string | null
+  reviewedAt?: string | null
+  adminRemarks?: string | null
+  details: Project | Certification | Skill
+}
+
+export interface EvidenceFileSummary {
+  id: number
+  name: string
+  mimeType: string
+  size: number
 }
 
 // ========================
@@ -182,8 +196,47 @@ export interface StudentDashboardStats {
 export interface AdminDashboardStats {
   pendingReviews: number
   totalStudents: number
+  activeStudents: number
+  inactiveStudents: number
   totalAssessments: number
   reviewsThisWeek: number
+  totalCvGenerated: number
+  totalRecommendationRuns: number
+  assessmentAttempts: number
+  assessmentPassRate: number
+  userGrowth: Array<{ label: string; value: number }>
+  submissionCounts: { pending: number; verified: number; rejected: number }
+  assessmentOutcomes: { passed: number; notPassed: number }
+}
+
+export interface AdminUserSummary {
+  id: number
+  name: string
+  email: string
+  programme: string | null
+  matricNo: string | null
+  isActive: boolean
+  createdAt: string
+  skillsCount: number
+  projectsCount: number
+  certificationsCount: number
+  assessmentAttemptsCount: number
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  profile: {
+    headline?: string | null
+    bio?: string | null
+    phone?: string | null
+    location?: string | null
+    linkedin_url?: string | null
+    github_url?: string | null
+    expected_graduation_date?: string | null
+  } | null
+  skills: Array<{ id: number; name: string; category: string; proficiency: string; status: VerificationStatus }>
+  projects: Array<{ id: number; title: string; status: VerificationStatus; createdAt: string }>
+  certifications: Array<{ id: number; title: string; status: VerificationStatus; createdAt: string }>
+  assessmentAttempts: Array<{ id: number; assessmentTitle: string | null; percentage: number | null; passed: boolean | null; submittedAt: string | null }>
 }
 
 // ========================

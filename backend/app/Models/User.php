@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -23,6 +25,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
+        'programme',
+        'matric_no',
     ];
 
     /**
@@ -45,6 +51,47 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    public function skills(): HasMany
+    {
+        return $this->hasMany(Skill::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(Certification::class);
+    }
+
+    public function jobPreference(): HasOne
+    {
+        return $this->hasOne(JobPreference::class);
+    }
+
+    public function jobRecommendationRuns(): HasMany
+    {
+        return $this->hasMany(JobRecommendationRun::class);
+    }
+
+    public function generatedCvs(): HasMany
+    {
+        return $this->hasMany(GeneratedCv::class);
+    }
+
+    public function assessmentAttempts(): HasMany
+    {
+        return $this->hasMany(AssessmentAttempt::class);
     }
 }

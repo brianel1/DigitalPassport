@@ -12,7 +12,10 @@ export const buttonVariants = cva(
         outline: 'border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost: 'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
-        destructive: 'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
+        destructive: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500/30 dark:bg-red-500 dark:text-red-950 dark:hover:bg-red-400',
+        success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500/30 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400',
+        warning: 'bg-amber-500 text-amber-950 hover:bg-amber-400 focus-visible:ring-amber-500/30 dark:bg-amber-400 dark:text-amber-950 dark:hover:bg-amber-300',
+        info: 'bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-500/30 dark:bg-sky-500 dark:text-sky-950 dark:hover:bg-sky-400',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

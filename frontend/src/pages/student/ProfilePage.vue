@@ -1,26 +1,82 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { BadgeCheck, Mail, Save, UserRound } from '@lucide/vue'
+import { onMounted, reactive, ref } from 'vue'
+import { BadgeCheck, Code2, Globe2, Mail, MapPin, Phone, Save, UserRound } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/composables/useAuth'
+import { ApiError, getStudentProfile, updateStudentProfile } from '@/lib/api'
 
-const { user } = useAuth()
+const { user, refreshUser } = useAuth()
 const saved = ref(false)
+const loading = ref(true)
+const submitting = ref(false)
+const error = ref('')
 const form = reactive({
   name: user.value?.name || '',
   email: user.value?.email || '',
   matricNo: user.value?.matricNo || '',
   programme: user.value?.programme || '',
-  bio: 'Computing student interested in full-stack development, database systems, and building useful digital products.',
+  headline: '',
+  bio: '',
+  phone: '',
+  location: '',
+  linkedinUrl: '',
+  githubUrl: '',
+  expectedGraduationDate: '',
 })
 
-function save() {
-  saved.value = true
-  window.setTimeout(() => { saved.value = false }, 2500)
+onMounted(async () => {
+  try {
+    const profile = await getStudentProfile()
+    Object.assign(form, {
+      name: profile.name,
+      email: profile.email,
+      matricNo: profile.matricNo ?? '',
+      programme: profile.programme ?? '',
+      headline: profile.headline ?? '',
+      bio: profile.bio ?? '',
+      phone: profile.phone ?? '',
+      location: profile.location ?? '',
+      linkedinUrl: profile.linkedinUrl ?? '',
+      githubUrl: profile.githubUrl ?? '',
+      expectedGraduationDate: profile.expectedGraduationDate ?? '',
+    })
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The profile could not be loaded.'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function save() {
+  submitting.value = true
+  error.value = ''
+  try {
+    const profile = await updateStudentProfile(form)
+    Object.assign(form, {
+      name: profile.name,
+      email: profile.email,
+      matricNo: profile.matricNo ?? '',
+      programme: profile.programme ?? '',
+      headline: profile.headline ?? '',
+      bio: profile.bio ?? '',
+      phone: profile.phone ?? '',
+      location: profile.location ?? '',
+      linkedinUrl: profile.linkedinUrl ?? '',
+      githubUrl: profile.githubUrl ?? '',
+      expectedGraduationDate: profile.expectedGraduationDate ?? '',
+    })
+    await refreshUser()
+    saved.value = true
+    window.setTimeout(() => { saved.value = false }, 2500)
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The profile could not be saved.'
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -59,10 +115,17 @@ function save() {
             <div class="space-y-2 sm:col-span-2"><Label for="name">Full name</Label><Input id="name" v-model="form.name" /></div>
             <div class="space-y-2"><Label for="matric">Matric number</Label><Input id="matric" v-model="form.matricNo" /></div>
             <div class="space-y-2"><Label for="programme">Programme</Label><Input id="programme" v-model="form.programme" /></div>
-            <div class="space-y-2 sm:col-span-2"><Label for="email">Email address</Label><Input id="email" v-model="form.email" type="email" /></div>
-            <div class="space-y-2 sm:col-span-2"><Label for="bio">Professional summary</Label><Textarea id="bio" v-model="form.bio" rows="5" /></div>
+            <div class="space-y-2 sm:col-span-2"><Label for="email">Email address</Label><Input id="email" v-model="form.email" type="email" disabled /></div>
+            <div class="space-y-2 sm:col-span-2"><Label for="headline">Professional headline</Label><Input id="headline" v-model="form.headline" maxlength="160" placeholder="Full Stack Developer" /></div>
+            <div class="space-y-2"><Label for="phone">Phone number</Label><div class="relative"><Phone class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="phone" v-model="form.phone" class="pl-9" /></div></div>
+            <div class="space-y-2"><Label for="location">Location</Label><div class="relative"><MapPin class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="location" v-model="form.location" class="pl-9" /></div></div>
+            <div class="space-y-2"><Label for="linkedin">LinkedIn URL</Label><div class="relative"><Globe2 class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="linkedin" v-model="form.linkedinUrl" type="url" class="pl-9" placeholder="https://linkedin.com/in/your-name" /></div></div>
+            <div class="space-y-2"><Label for="github">GitHub URL</Label><div class="relative"><Code2 class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="github" v-model="form.githubUrl" type="url" class="pl-9" placeholder="https://github.com/your-name" /></div></div>
+            <div class="space-y-2"><Label for="graduation">Expected graduation</Label><Input id="graduation" v-model="form.expectedGraduationDate" type="date" /></div>
+            <div class="space-y-2 sm:col-span-2"><Label for="bio">Professional summary</Label><Textarea id="bio" v-model="form.bio" rows="5" maxlength="2000" /></div>
+            <p v-if="error" class="text-sm font-medium text-destructive sm:col-span-2">{{ error }}</p>
             <div class="flex items-center gap-3 sm:col-span-2">
-              <Button type="submit"><Save class="size-4" /> Save changes</Button>
+              <Button type="submit" variant="success" :disabled="loading || submitting"><Save class="size-4" /> {{ submitting ? 'Saving...' : 'Save changes' }}</Button>
               <span v-if="saved" class="text-sm font-medium text-emerald-600">Profile updated successfully.</span>
             </div>
           </form>

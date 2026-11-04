@@ -1,30 +1,53 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Award, BookOpenCheck, CheckCircle2, Download, FolderKanban, IdCard, Sparkles } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
+import { Award, BookOpenCheck, CheckCircle2, Download, FolderKanban, IdCard, Loader2, Sparkles } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/composables/useAuth'
 import { usePortalData } from '@/composables/usePortalData'
+import { ApiError, downloadPassport as downloadPassportFile } from '@/lib/api'
 
 const { user } = useAuth()
-const { skills, projects, certifications, attempts } = usePortalData()
+const { skills, projects, certifications, attempts, loadStudentData } = usePortalData()
+
+const loading = ref(true)
+const exporting = ref(false)
+const error = ref('')
+
+onMounted(async () => {
+  await loadStudentData()
+  loading.value = false
+})
+
 const verifiedSkills = computed(() => skills.value.filter((item) => item.status === 'verified'))
 const verifiedProjects = computed(() => projects.value.filter((item) => item.status === 'verified'))
 const verifiedCertifications = computed(() => certifications.value.filter((item) => item.status === 'verified'))
 const passedAttempts = computed(() => attempts.value.filter((item) => item.passed))
 
-function downloadPassport() {
-  window.print()
+async function downloadPassport() {
+  exporting.value = true
+  error.value = ''
+  try {
+    await downloadPassportFile()
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The passport could not be downloaded.'
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div v-if="loading" class="flex items-center justify-center py-20">
+    <Loader2 class="size-8 animate-spin text-primary" />
+  </div>
+  <div v-else class="space-y-6">
     <div class="no-print flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><h1 class="text-2xl font-semibold tracking-tight">Digital Skills Passport</h1><p class="mt-1 text-muted-foreground">A verified overview of your digital competencies and achievements.</p></div>
-      <Button @click="downloadPassport"><Download class="size-4" /> Download passport</Button>
+      <Button :disabled="exporting" @click="downloadPassport"><Download class="size-4" /> {{ exporting ? 'Preparing...' : 'Download passport' }}</Button>
     </div>
+    <p v-if="error" class="text-sm font-medium text-destructive">{{ error }}</p>
 
     <article id="digital-passport" class="overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-primary/5">
       <header class="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-violet-700 p-8 text-primary-foreground sm:p-10">
@@ -44,6 +67,7 @@ function downloadPassport() {
       <div class="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1fr]">
         <section>
           <div class="mb-4 flex items-center gap-2"><Sparkles class="size-5 text-primary" /><h3 class="font-semibold">Verified skills</h3></div>
+          <div v-if="verifiedSkills.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified skills yet.</div>
           <div class="space-y-3">
             <div v-for="skill in verifiedSkills" :key="skill.id" class="rounded-xl border border-border p-4">
               <div class="flex items-center justify-between gap-3"><strong class="text-sm">{{ skill.name }}</strong><Badge variant="secondary">{{ skill.proficiency }}</Badge></div>
@@ -54,6 +78,7 @@ function downloadPassport() {
 
         <section>
           <div class="mb-4 flex items-center gap-2"><FolderKanban class="size-5 text-primary" /><h3 class="font-semibold">Verified projects</h3></div>
+          <div v-if="verifiedProjects.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified projects yet.</div>
           <div class="space-y-3">
             <div v-for="project in verifiedProjects" :key="project.id" class="rounded-xl border border-border p-4"><strong class="text-sm">{{ project.title }}</strong><p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ project.description }}</p><div class="mt-3 flex flex-wrap gap-1.5"><span v-for="technology in project.technologies" :key="technology" class="rounded bg-muted px-2 py-1 text-[11px]">{{ technology }}</span></div></div>
           </div>
@@ -61,11 +86,13 @@ function downloadPassport() {
 
         <section>
           <div class="mb-4 flex items-center gap-2"><Award class="size-5 text-primary" /><h3 class="font-semibold">Certifications</h3></div>
+          <div v-if="verifiedCertifications.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified certifications yet.</div>
           <Card v-for="certification in verifiedCertifications" :key="certification.id" class="mb-3 shadow-none"><CardHeader class="p-4"><CardTitle class="text-sm">{{ certification.title }}</CardTitle></CardHeader><CardContent class="px-4 pb-4 text-xs text-muted-foreground">{{ certification.issuingOrganization }} | {{ certification.issueDate }}</CardContent></Card>
         </section>
 
         <section>
           <div class="mb-4 flex items-center gap-2"><BookOpenCheck class="size-5 text-primary" /><h3 class="font-semibold">Assessment results</h3></div>
+          <div v-if="passedAttempts.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No passed assessments yet.</div>
           <div class="space-y-3"><div v-for="attempt in passedAttempts" :key="attempt.id" class="flex items-center justify-between rounded-xl border border-border p-4"><div><strong class="text-sm">{{ attempt.assessmentTitle }}</strong><p class="mt-1 text-xs text-muted-foreground">Completed assessment</p></div><span class="text-xl font-semibold text-primary">{{ attempt.percentage }}%</span></div></div>
         </section>
       </div>

@@ -1,6 +1,6 @@
 # DigitalPassport
 
-DigitalPassport is a web application for university students to record and present their digital skills. The system includes student profiles, evidence-backed skills, assessments, administrator review, and a downloadable Digital Skills Passport.
+DigitalPassport is a web application for university students to record and present their digital skills. The system combines verified student records with job matching and CV preparation tools for early career planning.
 
 ## Planned Features
 
@@ -9,6 +9,20 @@ DigitalPassport is a web application for university students to record and prese
 - Evidence uploads and administrator review with clear record statuses.
 - Predefined assessments with automatic scoring and attempt history.
 - An online passport summary and a downloadable PDF.
+- AI job recommendations based on verified skills, projects, certifications, assessments, and student preferences.
+- Ranked job matches with clear reasons, matched skills, and missing skills.
+- An editable ATS friendly CV with PDF and Word downloads.
+
+## Job Listing Strategy
+
+JobStreet is the preferred job source. Its official SEEK API does not provide public job search access, so the application uses a provider based design:
+
+1. Use an approved JobStreet integration when suitable access is available.
+2. Use the Jooble Malaysia API as the main live fallback.
+3. Use Remotive for suitable remote roles.
+4. Use the latest cached listings from the configured providers while a provider is temporarily unavailable.
+
+Every listing records its source and application URL. Provider results are cached to reduce API usage and keep the recommendation feature available during temporary provider outages.
 
 ## Technology
 
@@ -17,6 +31,8 @@ DigitalPassport is a web application for university students to record and prese
 | Backend | Laravel (PHP) REST API with Sanctum authentication |
 | Database | MySQL |
 | Frontend | Vue 3, Tailwind CSS, and shadcn-vue |
+| AI service | Ollama with a Qwen model, with a verified profile fallback when the local model is unavailable |
+| Job sources | JobStreet priority, Jooble Malaysia, and Remotive |
 
 ## Repository Structure
 
@@ -62,12 +78,44 @@ npm run dev
 
 Open the URL printed by Vite (usually `http://localhost:5173`). The frontend proxies `/api` requests to the Laravel server at `http://127.0.0.1:8000`.
 
+### Local AI and job data
+
+Install Ollama separately, start its local service, and download the selected model:
+
+```cmd
+ollama serve
+ollama pull qwen3:8b
+```
+
+Set these values in `backend/.env`:
+
+```env
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3:8b
+OLLAMA_TIMEOUT=90
+```
+
+The recommendation and CV services use the local model when `OLLAMA_MODEL` is configured. If the model is unavailable, they use the verified profile and explainable rules already stored in the application. No unverified facts are added.
+
+Refresh the cached job listings with:
+
+```cmd
+cd backend
+php artisan jobs:sync --keywords="software developer" --location="Malaysia"
+```
+
 ### Available API Endpoints
 
 | Method | Endpoint | Auth | Description |
 | --- | --- | --- | --- |
 | GET | `/api/health` | No | Health check |
 | GET | `/api/user` | Yes (Sanctum) | Get authenticated user |
+| POST | `/api/auth/register` | No | Register a student account |
+| POST | `/api/auth/login` | No | Sign in and create an API token |
+| POST | `/api/auth/logout` | Yes (Sanctum) | Revoke the current API token |
+| GET, PUT | `/api/student/profile` | Student | Read or update the student profile |
+| GET, POST | `/api/student/skills` | Student | List or create skills |
+| PUT, DELETE | `/api/student/skills/{skill}` | Student | Update or delete an owned skill |
 
 ## Git Workflow
 

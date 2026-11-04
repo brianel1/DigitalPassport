@@ -1,32 +1,70 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft, CheckCircle2, Clock3, Trophy } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { usePortalData } from '@/composables/usePortalData'
+import type { Assessment, AssessmentAttempt } from '@/types'
+import { ApiError, startAssessment, submitAssessment } from '@/lib/api'
 
 const route = useRoute()
-const { assessments, getAssessmentQuestions, addAttempt } = usePortalData()
 const assessmentId = Number(route.params.id)
-const assessment = computed(() => assessments.value.find((item) => item.id === assessmentId))
-const questions = computed(() => getAssessmentQuestions(assessmentId))
+const assessment = ref<Assessment | null>(null)
+const attemptId = ref<number | null>(null)
 const currentIndex = ref(0)
 const answers = ref<Record<number, number>>({})
-const result = ref<{ score: number; percentage: number; passed: boolean } | null>(null)
+const result = ref<AssessmentAttempt | null>(null)
+const loading = ref(true)
+const submitting = ref(false)
+const error = ref('')
+const secondsRemaining = ref(0)
+let timer: ReturnType<typeof setInterval> | undefined
 
+const questions = computed(() => assessment.value?.questions ?? [])
 const currentQuestion = computed(() => questions.value[currentIndex.value])
 const progress = computed(() => questions.value.length ? ((currentIndex.value + 1) / questions.value.length) * 100 : 0)
+const formattedTime = computed(() => {
+  const minutes = Math.floor(secondsRemaining.value / 60)
+  const seconds = secondsRemaining.value % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+})
 
-function submit() {
-  if (!assessment.value) return
-  const score = questions.value.filter((question) => answers.value[question.id] === question.correctAnswer).length
-  const percentage = Math.round((score / Math.max(questions.value.length, 1)) * 100)
-  const passed = percentage >= assessment.value.passingScore
-  result.value = { score, percentage, passed }
-  addAttempt({ id: Date.now(), assessmentId, assessmentTitle: assessment.value.title, category: assessment.value.category, score, totalQuestions: questions.value.length, percentage, passed, completedAt: new Date().toISOString() })
+onMounted(async () => {
+  try {
+    const response = await startAssessment(assessmentId)
+    assessment.value = response.assessment
+    attemptId.value = response.attemptId
+    secondsRemaining.value = Math.max(0, Math.floor((new Date(response.expiresAt).getTime() - Date.now()) / 1000))
+    timer = setInterval(() => {
+      secondsRemaining.value = Math.max(0, secondsRemaining.value - 1)
+      if (secondsRemaining.value === 0) {
+        clearInterval(timer)
+        void submit()
+      }
+    }, 1000)
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The assessment could not be started.'
+  } finally {
+    loading.value = false
+  }
+})
+
+onBeforeUnmount(() => clearInterval(timer))
+
+async function submit() {
+  if (!attemptId.value || submitting.value) return
+  submitting.value = true
+  error.value = ''
+  try {
+    result.value = await submitAssessment(attemptId.value, answers.value)
+    clearInterval(timer)
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The assessment could not be submitted.'
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -34,9 +72,12 @@ function submit() {
   <div class="mx-auto max-w-3xl space-y-6">
     <RouterLink to="/student/assessments" class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft class="size-4" /> Back to assessments</RouterLink>
 
-    <Card v-if="assessment && !result">
+    <p v-if="error" class="rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">{{ error }}</p>
+    <Card v-if="loading"><CardContent class="p-8 text-center text-muted-foreground">Starting assessment...</CardContent></Card>
+
+    <Card v-else-if="assessment && !result">
       <CardHeader>
-        <div class="flex flex-wrap items-center justify-between gap-3"><Badge variant="secondary">Question {{ currentIndex + 1 }} of {{ questions.length }}</Badge><span class="flex items-center gap-2 text-sm text-muted-foreground"><Clock3 class="size-4" /> {{ assessment.timeLimit }} minutes</span></div>
+        <div class="flex flex-wrap items-center justify-between gap-3"><Badge variant="secondary">Question {{ currentIndex + 1 }} of {{ questions.length }}</Badge><span class="flex items-center gap-2 text-sm font-medium" :class="secondsRemaining < 60 ? 'text-destructive' : 'text-muted-foreground'"><Clock3 class="size-4" /> {{ formattedTime }}</span></div>
         <CardTitle class="pt-3">{{ assessment.title }}</CardTitle>
         <Progress :model-value="progress" class="mt-3" />
       </CardHeader>
@@ -49,9 +90,9 @@ function submit() {
           </label>
         </div>
         <div class="mt-7 flex justify-between">
-          <Button variant="outline" :disabled="currentIndex === 0" @click="currentIndex--">Previous</Button>
-          <Button v-if="currentIndex < questions.length - 1" :disabled="answers[currentQuestion.id] === undefined" @click="currentIndex++">Next question</Button>
-          <Button v-else :disabled="Object.keys(answers).length !== questions.length" @click="submit">Submit assessment</Button>
+          <Button variant="outline" :disabled="currentIndex === 0 || submitting" @click="currentIndex--">Previous</Button>
+          <Button v-if="currentIndex < questions.length - 1" :disabled="answers[currentQuestion.id] === undefined || submitting" @click="currentIndex++">Next question</Button>
+          <Button v-else :disabled="Object.keys(answers).length !== questions.length || submitting" @click="submit">{{ submitting ? 'Submitting...' : 'Submit assessment' }}</Button>
         </div>
       </CardContent>
     </Card>
@@ -63,9 +104,9 @@ function submit() {
         <CardTitle class="pt-4 text-3xl">{{ result.percentage }}%</CardTitle>
         <CardDescription>{{ result.passed ? 'Assessment passed successfully' : 'Review the topic and try again' }}</CardDescription>
       </CardHeader>
-      <CardContent class="pb-10"><p class="mb-6 text-sm text-muted-foreground">You answered {{ result.score }} of {{ questions.length }} questions correctly.</p><Button as-child><RouterLink to="/student/assessments">Return to assessments</RouterLink></Button></CardContent>
+      <CardContent class="pb-10"><p class="mb-6 text-sm text-muted-foreground">You earned {{ result.score }} points across {{ result.totalQuestions }} questions.</p><Button as-child><RouterLink to="/student/assessments">Return to assessments</RouterLink></Button></CardContent>
     </Card>
 
-    <Card v-else><CardContent class="p-8 text-center"><p>Assessment could not be found.</p></CardContent></Card>
+    <Card v-else-if="!error"><CardContent class="p-8 text-center"><p>Assessment could not be found.</p></CardContent></Card>
   </div>
 </template>

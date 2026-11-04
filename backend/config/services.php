@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    'jooble' => [
+        'key' => env('JOOBLE_API_KEY'),
+        'url' => env('JOOBLE_API_URL', 'https://my.jooble.org/api'),
+    ],
+
+    'remotive' => [
+        'url' => env('REMOTIVE_API_URL', 'https://remotive.com/api/remote-jobs'),
+    ],
+
+    'ollama' => [
+        'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
+        'model' => env('OLLAMA_MODEL'),
+        'timeout' => env('OLLAMA_TIMEOUT', 90),
+    ],
+
 ];

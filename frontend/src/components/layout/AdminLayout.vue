@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { ClipboardCheck, Gauge, ListChecks, LogOut, Menu } from '@lucide/vue'
+import { ClipboardCheck, Gauge, ListChecks, LogOut, Menu, UsersRound } from '@lucide/vue'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 
@@ -34,14 +34,15 @@ const navItems = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: Gauge },
   { label: 'Review Submissions', path: '/admin/reviews', icon: ClipboardCheck },
   { label: 'Manage Assessments', path: '/admin/assessments', icon: ListChecks },
+  { label: 'Manage Users', path: '/admin/users', icon: UsersRound },
 ]
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-function handleLogout() {
-  logout()
+async function handleLogout() {
+  await logout()
   router.push('/login')
 }
 </script>

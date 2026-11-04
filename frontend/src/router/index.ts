@@ -14,9 +14,12 @@ import CertificationsPage from '@/pages/student/CertificationsPage.vue'
 import AssessmentsPage from '@/pages/student/AssessmentsPage.vue'
 import TakeAssessmentPage from '@/pages/student/TakeAssessmentPage.vue'
 import PassportPage from '@/pages/student/PassportPage.vue'
+import JobRecommendationsPage from '@/pages/student/JobRecommendationsPage.vue'
+import CvBuilderPage from '@/pages/student/CvBuilderPage.vue'
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.vue'
 import ReviewSubmissionsPage from '@/pages/admin/ReviewSubmissionsPage.vue'
 import ManageAssessmentsPage from '@/pages/admin/ManageAssessmentsPage.vue'
+import ManageUsersPage from '@/pages/admin/ManageUsersPage.vue'
 import { useAuth } from '@/composables/useAuth'
 
 const router = createRouter({
@@ -45,6 +48,8 @@ const router = createRouter({
         { path: 'assessments', component: AssessmentsPage },
         { path: 'assessments/:id', component: TakeAssessmentPage },
         { path: 'passport', component: PassportPage },
+        { path: 'jobs', component: JobRecommendationsPage },
+        { path: 'cv', component: CvBuilderPage },
       ],
     },
     {
@@ -56,6 +61,7 @@ const router = createRouter({
         { path: 'dashboard', component: AdminDashboardPage },
         { path: 'reviews', component: ReviewSubmissionsPage },
         { path: 'assessments', component: ManageAssessmentsPage },
+        { path: 'users', component: ManageUsersPage },
       ],
     },
     { path: '/:pathMatch(.*)*', component: NotFoundPage },

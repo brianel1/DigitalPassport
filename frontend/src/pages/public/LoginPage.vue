@@ -8,32 +8,26 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
+import { ApiError } from '@/lib/api'
 
 const router = useRouter()
 const { login, user } = useAuth()
-const email = ref('elber@student.utem.edu.my')
-const password = ref('password123')
+const email = ref('')
+const password = ref('')
 const error = ref('')
 const submitting = ref(false)
 
-function fillAdministratorAccess() {
-  email.value = 'admin@utem.edu.my'
-  password.value = 'admin123'
-  error.value = ''
-}
-
-function submit() {
+async function submit() {
   submitting.value = true
   error.value = ''
-  const success = login(email.value.trim(), password.value)
-  submitting.value = false
-
-  if (!success) {
-    error.value = 'The email or password is incorrect.'
-    return
+  try {
+    await login(email.value.trim(), password.value)
+    router.push(user.value?.role === 'admin' ? '/admin/dashboard' : '/student/dashboard')
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The server could not be reached.'
+  } finally {
+    submitting.value = false
   }
-
-  router.push(user.value?.role === 'admin' ? '/admin/dashboard' : '/student/dashboard')
 }
 </script>
 
@@ -88,7 +82,7 @@ function submit() {
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-400">
               <BrainCircuit class="size-4" />
             </div>
-            <span>Personalised AI diagnostic recommendations</span>
+            <span>AI job matches based on your verified profile</span>
           </div>
           <div class="flex items-center gap-3.5 text-sm text-slate-300">
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-500/20 bg-indigo-500/10 text-indigo-400">
@@ -185,16 +179,8 @@ function submit() {
               </Button>
             </form>
 
-            <div class="space-y-3 pt-2 text-center text-sm">
-              <button
-                type="button"
-                class="inline-block text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300 hover:underline"
-                @click="fillAdministratorAccess"
-              >
-                Quick fill: Administrator demo access
-              </button>
-
-              <div class="border-t border-white/[0.06] pt-4 text-slate-400">
+            <div class="pt-2 text-center text-sm text-slate-400">
+              <div class="border-t border-white/[0.06] pt-4">
                 New student?
                 <RouterLink to="/register" class="font-medium text-indigo-400 transition-colors hover:text-indigo-300 hover:underline">
                   Create an account

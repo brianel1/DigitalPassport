@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Award, BookOpenCheck, CheckCircle2, FolderKanban, Sparkles, TrendingUp } from '@lucide/vue'
+import { Award, BookOpenCheck, CheckCircle2, FolderKanban, Loader2, Sparkles, TrendingUp } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,7 +10,14 @@ import { useAuth } from '@/composables/useAuth'
 import { usePortalData } from '@/composables/usePortalData'
 
 const { user } = useAuth()
-const { skills, projects, certifications, attempts, activity } = usePortalData()
+const { skills, projects, certifications, attempts, activity, loadStudentData } = usePortalData()
+
+const loading = ref(true)
+
+onMounted(async () => {
+  await loadStudentData()
+  loading.value = false
+})
 
 const stats = computed(() => [
   { label: 'Skills', value: skills.value.length, detail: `${skills.value.filter((item) => item.status === 'verified').length} verified`, icon: Sparkles, color: 'text-violet-500 bg-violet-500/10' },
@@ -30,7 +37,10 @@ function formatDate(value: string) {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div v-if="loading" class="flex items-center justify-center py-20">
+    <Loader2 class="size-8 animate-spin text-primary" />
+  </div>
+  <div v-else class="space-y-8">
     <section class="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8">
       <div class="absolute -right-20 -top-20 size-64 rounded-full bg-primary/10 blur-3xl"></div>
       <div class="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -67,6 +77,7 @@ function formatDate(value: string) {
           <CardDescription>Latest updates across your DigitalPassport.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-1">
+          <div v-if="activity.length === 0" class="py-8 text-center text-sm text-muted-foreground">No activity yet. Start by adding your skills and projects.</div>
           <div v-for="item in activity" :key="item.id" class="flex gap-4 border-b border-border py-4 last:border-0">
             <div class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <CheckCircle2 class="size-4" />

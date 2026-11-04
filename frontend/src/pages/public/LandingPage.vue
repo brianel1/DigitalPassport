@@ -6,6 +6,7 @@ import {
   BarChart3,
   FileText,
   BrainCircuit,
+  BriefcaseBusiness,
   ChevronRight,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -29,17 +30,17 @@ const highlights = [
     borderColor: 'border-cyan-500/20',
   },
   {
-    icon: BrainCircuit,
-    title: 'AI Recommendations',
-    description: 'Personalised learning paths powered by Qwen3 AI to help you improve weak areas.',
+    icon: BriefcaseBusiness,
+    title: 'Job Recommendations',
+    description: 'Find suitable roles ranked using your verified skills, experience, and career preferences.',
     color: 'from-violet-500/20 to-violet-500/5',
     iconColor: 'text-violet-400',
     borderColor: 'border-violet-500/20',
   },
   {
     icon: FileText,
-    title: 'Downloadable Passport',
-    description: 'Export a PDF passport summarising your verified skills, projects, and certifications.',
+    title: 'ATS CV Generator',
+    description: 'Prepare and edit a focused CV, then download it as a PDF or Word document.',
     color: 'from-amber-500/20 to-amber-500/5',
     iconColor: 'text-amber-400',
     borderColor: 'border-amber-500/20',
@@ -47,9 +48,9 @@ const highlights = [
 ]
 
 const steps = [
-  { step: '01', title: 'Complete Assessment', description: 'Take a digital skills quiz in categories like PHP, JavaScript, or MySQL.' },
-  { step: '02', title: 'AI Analyses Results', description: 'Ollama + Qwen3 processes your score to identify weak areas.' },
-  { step: '03', title: 'Get Recommendations', description: 'Receive personalised learning topics, activities, and a step-by-step path.' },
+  { step: '01', title: 'Build a trusted profile', description: 'Add your skills, projects, certifications, assessments, and job preferences.' },
+  { step: '02', title: 'Match suitable jobs', description: 'The system compares your verified profile with current job requirements.' },
+  { step: '03', title: 'Prepare your application', description: 'Review each match and create an editable ATS friendly CV for the role.' },
 ]
 </script>
 
@@ -135,7 +136,7 @@ const steps = [
             <div class="h-10 w-px bg-white/10"></div>
             <div>
               <p class="text-2xl font-bold text-white">AI</p>
-              <p class="mt-1 text-sm text-slate-500">Learning Paths</p>
+              <p class="mt-1 text-sm text-slate-500">Job Matching</p>
             </div>
             <div class="h-10 w-px bg-white/10"></div>
             <div>
@@ -204,7 +205,7 @@ const steps = [
       </div>
     </section>
 
-    <!-- AI Recommendation Section -->
+    <!-- Career Tools Section -->
     <section class="relative overflow-hidden bg-[#080d1c] py-24">
       <div class="absolute right-0 top-0 h-[500px] w-[500px] rounded-full bg-violet-600/8 blur-[120px]"></div>
       <div class="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-indigo-600/8 blur-[100px]"></div>
@@ -215,14 +216,14 @@ const steps = [
           <div>
             <div class="mb-4 flex items-center gap-2.5">
               <span class="h-4 w-1 rounded-full bg-gradient-to-b from-violet-400 to-indigo-400"></span>
-              <span class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Formative AI Assessment</span>
+              <span class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">AI Career Support</span>
             </div>
 
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Smart learning recommendations
+              Turn verified skills into career opportunities
             </h2>
             <p class="mt-4 text-lg leading-relaxed text-slate-400">
-              After each assessment, our AI analyses your results and generates a personalised learning path to help you improve your weakest areas.
+              Discover suitable jobs based on the skills you can prove, then prepare a clear ATS friendly CV using the same trusted profile.
             </p>
 
             <div class="mt-10 space-y-6">
@@ -248,23 +249,23 @@ const steps = [
                   <BrainCircuit class="size-5 text-violet-400" />
                 </div>
                 <div>
-                  <p class="font-semibold text-white">AI Recommendation</p>
-                  <p class="text-xs text-slate-500">JavaScript Assessment</p>
+                  <p class="font-semibold text-white">Recommended Job</p>
+                  <p class="text-xs text-slate-500">Based on your verified profile</p>
                 </div>
                 <div class="ml-auto rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
-                  Score: 40%
+                  91% match
                 </div>
               </div>
 
               <!-- Recommendations -->
               <div class="space-y-3">
-                <p class="text-sm font-medium text-slate-300">Recommended learning path:</p>
+                <p class="text-sm font-medium text-slate-300">Junior Full Stack Developer</p>
                 <div class="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4">
                   <div class="flex items-start gap-3">
                     <ChevronRight class="mt-0.5 size-4 shrink-0 text-emerald-400" />
                     <div>
-                      <p class="text-sm font-medium text-white">Learn JavaScript fundamentals</p>
-                      <p class="mt-1 text-xs text-slate-500">Variables, data types, and control flow</p>
+                      <p class="text-sm font-medium text-white">Strong skill match</p>
+                      <p class="mt-1 text-xs text-slate-500">PHP, MySQL, JavaScript, and REST API</p>
                     </div>
                   </div>
                 </div>
@@ -272,8 +273,8 @@ const steps = [
                   <div class="flex items-start gap-3">
                     <ChevronRight class="mt-0.5 size-4 shrink-0 text-cyan-400" />
                     <div>
-                      <p class="text-sm font-medium text-white">Practise functions and DOM manipulation</p>
-                      <p class="mt-1 text-xs text-slate-500">Event handling, selectors, and dynamic content</p>
+                      <p class="text-sm font-medium text-white">Matches your preferences</p>
+                      <p class="mt-1 text-xs text-slate-500">Melaka, full time, entry level</p>
                     </div>
                   </div>
                 </div>
@@ -281,8 +282,8 @@ const steps = [
                   <div class="flex items-start gap-3">
                     <ChevronRight class="mt-0.5 size-4 shrink-0 text-violet-400" />
                     <div>
-                      <p class="text-sm font-medium text-white">Build a simple JavaScript project</p>
-                      <p class="mt-1 text-xs text-slate-500">Apply your skills in a real-world scenario</p>
+                      <p class="text-sm font-medium text-white">One skill to strengthen</p>
+                      <p class="mt-1 text-xs text-slate-500">Basic automated testing experience</p>
                     </div>
                   </div>
                 </div>
@@ -292,9 +293,9 @@ const steps = [
               <div class="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-slate-500">
                 <span class="flex items-center gap-1.5 text-slate-400">
                   <BrainCircuit class="size-3.5 text-violet-400" />
-                  Local AI Diagnostic
+                  Explainable job match
                 </span>
-                <span class="text-[11px] text-slate-500">Formative guidance</span>
+                <span class="text-[11px] text-slate-500">Source shown with every listing</span>
               </div>
             </div>
           </div>

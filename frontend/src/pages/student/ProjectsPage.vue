@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ExternalLink, FileText, FolderKanban, Plus, Trash2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,29 +8,82 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
-import { usePortalData } from '@/composables/usePortalData'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
+import type { Project } from '@/types'
+import { ApiError, createProject, getProjects, removeProject } from '@/lib/api'
 
-const { projects, addProject, deleteProject } = usePortalData()
+const projects = ref<Project[]>([])
 const dialogOpen = ref(false)
-const form = reactive({ title: '', description: '', technologies: '', projectUrl: '', completionDate: '', evidenceFile: '' })
+const loading = ref(true)
+const submitting = ref(false)
+const error = ref('')
+const deleteTarget = ref<Project | null>(null)
+const deleteDialogOpen = computed({
+  get: () => Boolean(deleteTarget.value),
+  set: (open: boolean) => { if (!open) deleteTarget.value = null },
+})
+const form = reactive<{ title: string; description: string; technologies: string; projectUrl: string; completionDate: string; evidenceFile: File | null }>({
+  title: '', description: '', technologies: '', projectUrl: '', completionDate: '', evidenceFile: null,
+})
 
 function chooseFile(event: Event) {
   const input = event.target as HTMLInputElement
-  form.evidenceFile = input.files?.[0]?.name || ''
+  const file = input.files?.[0] ?? null
+  if (file && (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+    form.evidenceFile = null
+    error.value = 'Evidence must be a PDF, JPG or PNG file up to 10 MB.'
+    input.value = ''
+    return
+  }
+  error.value = ''
+  form.evidenceFile = file
 }
 
-function submit() {
-  addProject({
-    title: form.title,
-    description: form.description,
-    technologies: form.technologies.split(',').map((item) => item.trim()).filter(Boolean),
-    projectUrl: form.projectUrl || undefined,
-    completionDate: form.completionDate,
-    evidenceFiles: form.evidenceFile ? [form.evidenceFile] : [],
-    linkedSkills: [],
-  })
-  Object.assign(form, { title: '', description: '', technologies: '', projectUrl: '', completionDate: '', evidenceFile: '' })
-  dialogOpen.value = false
+onMounted(async () => {
+  try {
+    projects.value = await getProjects()
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'Projects could not be loaded.'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function submit() {
+  if (!form.title.trim() || !form.description.trim() || !form.technologies.trim() || !form.completionDate) {
+    error.value = 'Complete all required project fields before submitting.'
+    return
+  }
+  submitting.value = true
+  error.value = ''
+  try {
+    const project = await createProject({
+      title: form.title,
+      description: form.description,
+      technologies: form.technologies.split(',').map((item) => item.trim()).filter(Boolean),
+      projectUrl: form.projectUrl || undefined,
+      completionDate: form.completionDate,
+      evidence: form.evidenceFile,
+    })
+    projects.value.unshift(project)
+    Object.assign(form, { title: '', description: '', technologies: '', projectUrl: '', completionDate: '', evidenceFile: null })
+    dialogOpen.value = false
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The project could not be saved.'
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function deleteProject() {
+  if (!deleteTarget.value) return
+  try {
+    await removeProject(deleteTarget.value.id)
+    projects.value = projects.value.filter((project) => project.id !== deleteTarget.value?.id)
+    deleteTarget.value = null
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'The project could not be deleted.'
+  }
 }
 </script>
 
@@ -47,12 +100,16 @@ function submit() {
             <div class="space-y-2"><Label for="project-description">Description</Label><Textarea id="project-description" v-model="form.description" rows="4" required /></div>
             <div class="space-y-2"><Label for="technologies">Technologies</Label><Input id="technologies" v-model="form.technologies" placeholder="Vue.js, Laravel, MySQL" required /></div>
             <div class="grid gap-4 sm:grid-cols-2"><div class="space-y-2"><Label for="project-url">Project URL</Label><Input id="project-url" v-model="form.projectUrl" type="url" /></div><div class="space-y-2"><Label for="completion-date">Completion date</Label><Input id="completion-date" v-model="form.completionDate" type="date" required /></div></div>
-            <div class="space-y-2"><Label for="evidence">Evidence file</Label><Input id="evidence" type="file" @change="chooseFile" /></div>
-            <DialogFooter><Button type="submit">Submit project</Button></DialogFooter>
+            <div class="space-y-2"><Label for="evidence">Evidence file</Label><Input id="evidence" type="file" accept="application/pdf,image/jpeg,image/png" @change="chooseFile" /><p class="text-xs text-muted-foreground">PDF, JPG or PNG up to 10 MB.</p></div>
+            <DialogFooter><Button type="submit" :disabled="submitting">{{ submitting ? 'Saving...' : 'Submit project' }}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+
+    <p v-if="error" class="text-sm font-medium text-destructive">{{ error }}</p>
+    <p v-if="loading" class="text-sm text-muted-foreground">Loading projects...</p>
+    <p v-else-if="projects.length === 0" class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No projects yet. Add completed work to build your portfolio.</p>
 
     <div class="grid gap-5 lg:grid-cols-2">
       <Card v-for="project in projects" :key="project.id" class="overflow-hidden">
@@ -67,10 +124,11 @@ function submit() {
           <div class="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-4 text-sm text-muted-foreground">
             <span class="flex items-center gap-1.5"><FileText class="size-4" /> {{ project.evidenceFiles.length }} evidence file(s)</span>
             <a v-if="project.projectUrl" :href="project.projectUrl" target="_blank" rel="noreferrer" class="flex items-center gap-1.5 text-primary hover:underline"><ExternalLink class="size-4" /> View project</a>
-            <Button variant="ghost" size="icon-sm" class="ml-auto" aria-label="Delete project" @click="deleteProject(project.id)"><Trash2 class="size-4" /></Button>
+            <Button variant="destructive" size="icon-sm" class="ml-auto" aria-label="Delete project" @click="deleteTarget = project"><Trash2 class="size-4" /></Button>
           </div>
         </CardContent>
       </Card>
     </div>
   </div>
+  <ConfirmDialog v-model:open="deleteDialogOpen" title="Delete this project?" description="This project and its uploaded evidence will be permanently removed from your portfolio." confirm-label="Delete project" @confirm="deleteProject" />
 </template>

@@ -1,5 +1,5 @@
 // ========================
-// Core entity types for DigitalPassport
+// Core entity types for the skills and career workspace
 // ========================
 
 export type UserRole = 'student' | 'admin'
@@ -64,6 +64,8 @@ export interface StudentProfile {
 // ========================
 
 export interface Skill {
+  reviewerName?: string | null
+  reviewedAt?: string | null
   id: number
   name: string
   category: SkillCategory
@@ -73,6 +75,7 @@ export interface Skill {
   linkedProjects: number[]
   linkedCertifications: number[]
   linkedAssessments: number[]
+  adminRemarks?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -82,6 +85,12 @@ export interface Skill {
 // ========================
 
 export interface Project {
+  evidence?: EvidenceFileSummary[]
+  reviewerName?: string | null
+  reviewedAt?: string | null
+  role?: string | null
+  repositoryUrl?: string | null
+  reviewHistory?: ReviewHistory[]
   id: number
   title: string
   description: string
@@ -101,6 +110,12 @@ export interface Project {
 // ========================
 
 export interface Certification {
+  evidence?: EvidenceFileSummary[]
+  expired?: boolean
+  credentialUrl?: string | null
+  reviewerName?: string | null
+  reviewedAt?: string | null
+  reviewHistory?: ReviewHistory[]
   id: number
   title: string
   issuingOrganization: string
@@ -129,6 +144,9 @@ export interface AssessmentQuestion {
 }
 
 export interface Assessment {
+  locked?:boolean
+  version?:number
+  skillNames?:string[]
   id: number
   title: string
   category: SkillCategory
@@ -141,6 +159,10 @@ export interface Assessment {
 }
 
 export interface AssessmentAttempt {
+  familyId?:number
+  feedback?:string
+  expired?:boolean
+  skillNames?:string[]
   id: number
   assessmentId: number
   assessmentTitle: string
@@ -157,6 +179,10 @@ export interface AssessmentAttempt {
 // ========================
 
 export interface ReviewItem {
+  supportingAssessments?:Array<{title:string;percentage:number;completedAt:string}>
+  revision?: number
+  changes?: Array<{field:string;before:unknown;after:unknown}>
+  reviewHistory?: ReviewHistory[]
   id: number
   type: 'project' | 'certification' | 'skill'
   studentName: string
@@ -165,6 +191,7 @@ export interface ReviewItem {
   submittedAt: string
   status: VerificationStatus
   evidenceFiles: EvidenceFileSummary[]
+  supportingEvidence?: Array<{ expired?:boolean; type: 'project' | 'certification'; id: number; title: string; status: VerificationStatus; projectUrl?: string | null; files: EvidenceFileSummary[] }>
   reviewerName?: string | null
   reviewedAt?: string | null
   adminRemarks?: string | null
@@ -177,6 +204,8 @@ export interface EvidenceFileSummary {
   mimeType: string
   size: number
 }
+
+export interface ReviewHistory { id:number; decision:string; remarks:string|null; reviewerName:string; reviewedAt:string; revision:number|null }
 
 // ========================
 // Dashboard Stats
@@ -194,6 +223,8 @@ export interface StudentDashboardStats {
 }
 
 export interface AdminDashboardStats {
+  waitingOverWeek?:number
+  oldestPendingDays?:number
   pendingReviews: number
   totalStudents: number
   activeStudents: number

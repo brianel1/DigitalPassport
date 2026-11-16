@@ -62,7 +62,7 @@ class JobRecommendationTest extends TestCase
             ->assertJsonPath('minimumSalary', 2500);
     }
 
-    public function test_ollama_can_refine_recommendation_explanations_when_configured(): void
+    public function test_ollama_ranking_does_not_publish_ungrounded_explanations(): void
     {
         config()->set('services.ollama.model', 'qwen3:8b');
         Http::fake([
@@ -88,12 +88,66 @@ class JobRecommendationTest extends TestCase
         $this->postJson('/api/student/job-recommendations')
             ->assertCreated()
             ->assertJsonPath('matches.0.job.id', $job->id)
-            ->assertJsonPath('matches.0.explanation', 'Your verified Laravel and PHP skills match this backend role.');
+            ->assertJsonPath('matches.0.explanation', 'This role matches your laravel skills.')
+            ->assertJsonPath('modelName', 'ollama:qwen3:8b');
 
         $this->assertDatabaseHas('job_recommendation_runs', [
             'user_id' => $student->id,
             'model_name' => 'ollama:qwen3:8b',
         ]);
+    }
+
+    public function test_salary_ceiling_can_be_set_without_a_minimum_and_remote_filter_updates_immediately(): void
+    {
+        config()->set('services.ollama.model', null);
+        Sanctum::actingAs(User::factory()->create());
+        $this->job('remote-filter', 'Developer', 'Worldwide', ['PHP']);
+        $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonCount(1, 'matches');
+        $this->putJson('/api/student/job-preferences', ['minimum_salary' => null, 'maximum_salary' => 5000, 'accepts_remote' => false])->assertOk();
+        $this->getJson('/api/student/job-recommendations')->assertOk()->assertJsonCount(0, 'matches');
+    }
+
+    public function test_score_has_no_free_points_and_updates_when_evidence_changes(): void
+    {
+        config()->set('services.ollama.model',null);
+        $student=User::factory()->create();
+        $skill=$student->skills()->create(['name'=>'JavaScript','category'=>'programming','proficiency'=>'beginner','status'=>'pending']);
+        $this->job('score-case','Frontend Developer','Melaka',['JS','Laravel']);
+        Sanctum::actingAs($student);
+        $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonPath('matches.0.matchScore',0)
+            ->assertJsonPath('matches.0.scoreBreakdown.matchedCount',0);
+        $skill->update(['status'=>'verified']);
+        $this->getJson('/api/student/job-recommendations')->assertOk()->assertJsonPath('matches.0.matchScore',50)
+            ->assertJsonPath('matches.0.scoreBreakdown.matchedCount',1);
+        $skill->update(['status'=>'rejected']);
+        $this->getJson('/api/student/job-recommendations')->assertOk()->assertJsonPath('matches.0.matchScore',0);
+    }
+
+    public function test_project_evidence_preferences_and_unknown_requirements_are_explained(): void
+    {
+        $student=User::factory()->create();
+        $student->projects()->create(['title'=>'Booking API','description'=>'Implemented endpoints','technologies'=>['Laravel'],'completion_date'=>'2026-10-01','status'=>'verified']);
+        $student->jobPreference()->create(['preferred_locations'=>['Melaka'],'work_types'=>['internship'],'minimum_salary'=>3000,'accepts_remote'=>true]);
+        $job=$this->job('pref-case','Backend Developer','Melaka',['Laravel','PHP']);
+        $fit=app(\App\Services\JobFitScorer::class)->score($job,$student);
+        $this->assertEquals(50,$fit['breakdown']['skillCoverage']);
+        $this->assertFalse($fit['breakdown']['salaryCompared']);
+        $this->assertCount(2,$fit['breakdown']['preferences']);
+        $this->assertEqualsWithDelta(46.15,$fit['score'],.01);
+        $unknown=app(\App\Services\JobFitScorer::class)->score($this->job('unknown','Research role','Melaka',[]),$student);
+        $this->assertFalse($unknown['breakdown']['assessable']);
+        $this->assertEquals(0,$unknown['score']);
+    }
+
+    public function test_skill_extraction_does_not_match_substrings(): void
+    {
+        $extractor=new class { use \App\Services\JobProviders\ExtractsJobSkills; public function read(string $text):array{return $this->extractSkills($text);} };
+        $skills=$extractor->read('JavaScript, MySQL and GitHub.');
+        $this->assertContains('JavaScript',$skills);
+        $this->assertContains('MySQL',$skills);
+        $this->assertNotContains('Java',$skills);
+        $this->assertNotContains('SQL',$skills);
+        $this->assertNotContains('Git',$skills);
     }
 
     private function job(string $externalId, string $title, string $location, array $skills): JobListing

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Certification extends Model
@@ -19,6 +20,7 @@ class Certification extends Model
             'issue_date' => 'date',
             'expiry_date' => 'date',
             'reviewed_at' => 'datetime',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -35,5 +37,10 @@ class Certification extends Model
     public function evidenceFiles(): MorphMany
     {
         return $this->morphMany(EvidenceFile::class, 'evidenceable');
+    }
+
+    public function skills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class);
     }
 }

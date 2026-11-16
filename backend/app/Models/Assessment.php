@@ -10,12 +10,12 @@ class Assessment extends Model
 {
     protected $fillable = [
         'created_by', 'title', 'category', 'description', 'time_limit_minutes',
-        'passing_score', 'is_published',
+        'passing_score', 'is_published', 'skill_names', 'version', 'parent_assessment_id',
     ];
 
     protected function casts(): array
     {
-        return ['is_published' => 'boolean'];
+        return ['is_published' => 'boolean', 'skill_names' => 'array'];
     }
 
     public function creator(): BelongsTo

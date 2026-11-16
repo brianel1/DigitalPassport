@@ -4,57 +4,46 @@ namespace App\Http\Controllers;
 
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
+use App\Services\AssessmentEvidence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentAssessmentController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
         $this->ensureStudent($request);
-
-        $assessments = Assessment::query()
-            ->where('is_published', true)
-            ->withCount('questions')
-            ->orderBy('title')
-            ->get()
-            ->map(fn (Assessment $assessment) => $this->assessmentData($assessment));
-
-        $attempts = AssessmentAttempt::query()
-            ->where('user_id', $request->user()->id)
-            ->whereNotNull('submitted_at')
-            ->with('assessment')
-            ->latest('submitted_at')
-            ->get()
-            ->map(fn (AssessmentAttempt $attempt) => $this->attemptData($attempt));
-
+        $assessments = Assessment::where('is_published', true)->withCount('questions')->orderBy('title')->get()->map(fn ($a) => $this->assessmentData($a));
+        $attempts = $request->user()->assessmentAttempts()->whereNotNull('submitted_at')->with('assessment')->latest('submitted_at')->get()->map(fn ($a) => $this->attemptData($a));
         return response()->json(['assessments' => $assessments, 'attempts' => $attempts]);
     }
 
     public function start(Request $request, Assessment $assessment): JsonResponse
     {
         $this->ensureStudent($request);
-        abort_unless($assessment->is_published, 404);
-
-        $attempt = AssessmentAttempt::create([
-            'assessment_id' => $assessment->id,
-            'user_id' => $request->user()->id,
-            'started_at' => now(),
-        ]);
-
-        $assessment->load('questions');
-
+        $attempt = DB::transaction(function () use ($request, $assessment) {
+            $request->user()->newQuery()->whereKey($request->user()->id)->lockForUpdate()->first();
+            $assessment = Assessment::whereKey($assessment->id)->lockForUpdate()->firstOrFail();
+            $pending = AssessmentAttempt::where('assessment_id', $assessment->id)->where('user_id', $request->user()->id)->whereNull('submitted_at')->latest()->get();
+            foreach ($pending as $existing) {
+                $snapshot = $existing->assessment_snapshot ?? app(AssessmentEvidence::class)->snapshot($assessment);
+                if (!$existing->assessment_snapshot) $existing->update(['assessment_snapshot' => $snapshot]);
+                if (now()->lt($existing->started_at->copy()->addMinutes($snapshot['time_limit']))) return $existing;
+                $this->finish($existing, [], true);
+            }
+            abort_unless($assessment->is_published, 404);
+            abort_unless($assessment->questions()->exists(), 422, 'This assessment has no questions yet.');
+            return AssessmentAttempt::create(['assessment_id' => $assessment->id, 'user_id' => $request->user()->id, 'started_at' => now(), 'assessment_snapshot' => app(AssessmentEvidence::class)->snapshot($assessment)]);
+        });
+        $snapshot = $attempt->assessment_snapshot;
         return response()->json([
-            'attemptId' => $attempt->id,
-            'startedAt' => $attempt->started_at->toISOString(),
-            'expiresAt' => $attempt->started_at->copy()->addMinutes($assessment->time_limit_minutes)->toISOString(),
+            'attemptId' => $attempt->id, 'startedAt' => $attempt->started_at->toISOString(),
+            'expiresAt' => $attempt->started_at->copy()->addMinutes($snapshot['time_limit'])->toISOString(),
             'assessment' => [
-                ...$this->assessmentData($assessment),
-                'questions' => $assessment->questions->map(fn ($question) => [
-                    'id' => $question->id,
-                    'question' => $question->question,
-                    'options' => $question->options,
-                ]),
+                'id' => $assessment->id, 'title' => $snapshot['title'], 'category' => $snapshot['category'], 'description' => $snapshot['description'],
+                'timeLimit' => $snapshot['time_limit'], 'passingScore' => $snapshot['passing_score'], 'questionCount' => count($snapshot['questions']),
+                'questions' => collect($snapshot['questions'])->map(fn ($q) => collect($q)->only(['id', 'question', 'options'])->all())->values(),
             ],
         ], 201);
     }
@@ -63,83 +52,52 @@ class StudentAssessmentController extends Controller
     {
         $this->ensureStudent($request);
         abort_unless($attempt->user_id === $request->user()->id, 404);
-
-        if ($attempt->submitted_at) {
-            return response()->json(['message' => 'This assessment attempt has already been submitted.'], 422);
-        }
-
-        $assessment = $attempt->assessment()->with('questions')->firstOrFail();
-        if (now()->greaterThan($attempt->started_at->copy()->addMinutes($assessment->time_limit_minutes)->addSeconds(10))) {
-            return response()->json(['message' => 'The assessment time limit has expired.'], 422);
-        }
-
-        $validated = $request->validate([
-            'answers' => ['present', 'array'],
-            'answers.*.question_id' => ['required', 'integer'],
-            'answers.*.selected_option' => ['nullable', 'integer', 'min:0'],
-        ]);
-
-        $submittedAnswers = collect($validated['answers'])->keyBy('question_id');
-        $score = 0;
-        $maximumScore = $assessment->questions->sum('points');
-
-        foreach ($assessment->questions as $question) {
-            $selected = $submittedAnswers->get($question->id)['selected_option'] ?? null;
-            $isCorrect = $selected !== null && (int) $selected === $question->correct_option;
-            $points = $isCorrect ? $question->points : 0;
-            $score += $points;
-            $attempt->answers()->create([
-                'question_id' => $question->id,
-                'selected_option' => $selected,
-                'is_correct' => $isCorrect,
-                'points_awarded' => $points,
-            ]);
-        }
-
-        $percentage = $maximumScore > 0 ? round(($score / $maximumScore) * 100, 2) : 0;
-        $attempt->update([
-            'score' => $score,
-            'maximum_score' => $maximumScore,
-            'percentage' => $percentage,
-            'passed' => $percentage >= $assessment->passing_score,
-            'submitted_at' => now(),
-        ]);
-
-        return response()->json($this->attemptData($attempt->refresh()->load('assessment')));
+        $validated = $request->validate(['answers' => ['present', 'array'], 'answers.*.question_id' => ['required', 'integer', 'distinct'], 'answers.*.selected_option' => ['nullable', 'integer', 'min:0']]);
+        $attempt = DB::transaction(function () use ($attempt, $validated) {
+            $attempt = AssessmentAttempt::whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+            abort_if($attempt->submitted_at, 422, 'This attempt has already been submitted.');
+            if (!$attempt->assessment_snapshot) $attempt->update(['assessment_snapshot' => app(AssessmentEvidence::class)->snapshot($attempt->assessment)]);
+            $expired = now()->gt($attempt->started_at->copy()->addMinutes($attempt->assessment_snapshot['time_limit'])->addSeconds(10));
+            return $this->finish($attempt, $validated['answers'], $expired);
+        });
+        return response()->json($this->attemptData($attempt->load('assessment')));
     }
 
-    private function ensureStudent(Request $request): void
+    private function finish(AssessmentAttempt $attempt, array $answers, bool $expired): AssessmentAttempt
     {
-        abort_unless($request->user()->role === 'student', 403, 'Student access is required.');
+        $snapshot = $attempt->assessment_snapshot;
+        $submitted = collect($expired ? [] : $answers)->keyBy('question_id');
+        $maximum = collect($snapshot['questions'])->sum('points'); $score = 0;
+        foreach ($snapshot['questions'] as $question) {
+            $selected = $submitted->get($question['id'])['selected_option'] ?? null;
+            $correct = $selected !== null && (int) $selected === $question['correct_option'];
+            $points = $correct ? $question['points'] : 0; $score += $points;
+            $attempt->answers()->create(['question_id' => $question['id'], 'selected_option' => $selected, 'is_correct' => $correct, 'points_awarded' => $points]);
+        }
+        $percentage = $maximum > 0 ? round($score / $maximum * 100, 2) : 0;
+        $snapshot['expired'] = $expired;
+        $attempt->update(['assessment_snapshot' => $snapshot, 'score' => $score, 'maximum_score' => $maximum, 'percentage' => $percentage, 'passed' => !$expired && $percentage >= $snapshot['passing_score'], 'submitted_at' => now()]);
+        return $attempt;
     }
 
-    /** @return array<string, mixed> */
-    private function assessmentData(Assessment $assessment): array
+    private function ensureStudent(Request $request): void { abort_unless($request->user()->role === 'student', 403); }
+
+    private function assessmentData(Assessment $a): array
     {
-        return [
-            'id' => $assessment->id,
-            'title' => $assessment->title,
-            'category' => $assessment->category,
-            'description' => $assessment->description,
-            'questionCount' => $assessment->questions_count ?? $assessment->questions->count(),
-            'timeLimit' => $assessment->time_limit_minutes,
-            'passingScore' => $assessment->passing_score,
-        ];
+        return ['id' => $a->id, 'title' => $a->title, 'category' => $a->category, 'description' => $a->description,
+            'questionCount' => $a->questions_count, 'timeLimit' => $a->time_limit_minutes, 'passingScore' => $a->passing_score, 'skillNames' => $a->skill_names ?? [], 'version' => $a->version];
     }
 
-    /** @return array<string, mixed> */
-    private function attemptData(AssessmentAttempt $attempt): array
+    private function attemptData(AssessmentAttempt $a): array
     {
-        return [
-            'id' => $attempt->id,
-            'assessmentId' => $attempt->assessment_id,
-            'assessmentTitle' => $attempt->assessment->title,
-            'category' => $attempt->assessment->category,
-            'score' => $attempt->score,
-            'totalQuestions' => $attempt->assessment->questions()->count(),
-            'percentage' => (float) $attempt->percentage,
-            'passed' => $attempt->passed,
-            'completedAt' => $attempt->submitted_at?->toISOString(),
+        $snapshot = $a->assessment_snapshot;
+        return ['id' => $a->id, 'assessmentId' => $a->assessment_id, 'familyId' => $snapshot['family_id'] ?? $a->assessment->parent_assessment_id ?? $a->assessment_id,
+            'assessmentTitle' => $snapshot['title'] ?? $a->assessment->title, 'category' => $snapshot['category'] ?? $a->assessment->category,
+            'score' => $a->score, 'totalQuestions' => isset($snapshot['questions']) ? count($snapshot['questions']) : $a->assessment->questions()->count(),
+            'percentage' => (float) $a->percentage, 'passed' => $a->passed, 'completedAt' => $a->submitted_at?->toISOString(),
+            'skillNames' => app(AssessmentEvidence::class)->skills($a), 'expired' => $snapshot['expired'] ?? false,
+            'feedback' => ($snapshot['expired'] ?? false) ? 'The time limit ended. Start a new attempt when you are ready.'
+                : ($a->passed ? 'You passed. These results support the assessment topics in your skills record.' : 'Review '.implode(', ', app(AssessmentEvidence::class)->skills($a) ?: [str_replace('-', ' ', $snapshot['category'] ?? $a->assessment->category)]).' before trying again.'),
         ];
     }
 }

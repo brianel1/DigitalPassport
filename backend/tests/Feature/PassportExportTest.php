@@ -36,7 +36,7 @@ class PassportExportTest extends TestCase
 
         $this->get('/api/student/passport/export')
             ->assertOk()
-            ->assertDownload('digital-passport.pdf');
+            ->assertDownload('skills-profile.pdf');
     }
 
     public function test_admin_cannot_export_a_student_passport(): void

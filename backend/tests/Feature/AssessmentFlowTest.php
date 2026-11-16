@@ -42,6 +42,17 @@ class AssessmentFlowTest extends TestCase
         ]);
     }
 
+    public function test_returning_to_an_active_assessment_keeps_attempt_and_deadline(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $assessment=$this->assessment();
+        $first=$this->postJson("/api/student/assessments/{$assessment->id}/attempts")->assertCreated();
+        $this->travel(2)->minutes();
+        $this->postJson("/api/student/assessments/{$assessment->id}/attempts")->assertCreated()
+            ->assertJsonPath('attemptId',$first->json('attemptId'))->assertJsonPath('expiresAt',$first->json('expiresAt'));
+        $this->assertDatabaseCount('assessment_attempts',1);
+    }
+
     public function test_only_published_assessments_are_visible_to_students(): void
     {
         $student = User::factory()->create();

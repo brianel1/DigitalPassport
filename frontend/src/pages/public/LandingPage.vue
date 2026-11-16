@@ -1,341 +1,93 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import {
-  ArrowUpRight,
-  ShieldCheck,
-  BarChart3,
-  FileText,
-  BrainCircuit,
-  BriefcaseBusiness,
-  ChevronRight,
-} from '@lucide/vue'
-import { Button } from '@/components/ui/button'
+import { ArrowUpRight, ShieldCheck, FileText, BriefcaseBusiness, Plus, FolderCheck, Layers3, Check, BookOpenCheck, Play, Sparkles, Code2, Award, Menu, X } from '@lucide/vue'
 import BrandLogo from '@/components/brand/BrandLogo.vue'
-
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: 'Verified Skills',
-    description: 'Admin-verified credentials that employers can trust. Every skill backed by evidence.',
-    color: 'from-emerald-500/20 to-emerald-500/5',
-    iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20',
-  },
-  {
-    icon: BarChart3,
-    title: 'Skill Assessments',
-    description: 'Objective quizzes with automatic scoring to validate your digital competencies.',
-    color: 'from-cyan-500/20 to-cyan-500/5',
-    iconColor: 'text-cyan-400',
-    borderColor: 'border-cyan-500/20',
-  },
-  {
-    icon: BriefcaseBusiness,
-    title: 'Job Recommendations',
-    description: 'Find suitable roles ranked using your verified skills, experience, and career preferences.',
-    color: 'from-violet-500/20 to-violet-500/5',
-    iconColor: 'text-violet-400',
-    borderColor: 'border-violet-500/20',
-  },
-  {
-    icon: FileText,
-    title: 'ATS CV Generator',
-    description: 'Prepare and edit a focused CV, then download it as a PDF or Word document.',
-    color: 'from-amber-500/20 to-amber-500/5',
-    iconColor: 'text-amber-400',
-    borderColor: 'border-amber-500/20',
-  },
+import ProductVideo from '@/components/shared/ProductVideo.vue'
+const mobileMenu = ref(false)
+const activeFeature = ref(0)
+const features = [
+  { title: 'Show the work behind your skills.', label: 'Build your record', copy: 'Connect your projects and certifications to the skills they demonstrate. Keep your achievements organised as you learn.', icon: Layers3, nodes: ['Projects', 'Certifications', 'Skills', 'Achievements'], centre: 'Your skills profile', detail: 'Everything you have worked for, connected.' },
+  { title: 'Give your achievements credibility.', label: 'Back it with evidence', copy: 'Submit supporting work for review. Follow each decision and see what needs attention, with clear feedback from your administrator.', icon: ShieldCheck, nodes: ['Supporting work', 'Evidence review', 'Feedback', 'Verified skills'], centre: 'Evidence that matters', detail: 'A clearer picture of what you can do.' },
+  { title: 'Understand your next step.', label: 'Explore your direction', copy: 'Compare your verified skills with current job requirements. See your strengths, identify gaps and prepare an application that reflects your work.', icon: BriefcaseBusiness, nodes: ['Verified skills', 'Career preferences', 'Job requirements', 'Your next step'], centre: 'A clearer direction', detail: 'Make informed choices about your career.' },
 ]
-
-const steps = [
-  { step: '01', title: 'Build a trusted profile', description: 'Add your skills, projects, certifications, assessments, and job preferences.' },
-  { step: '02', title: 'Match suitable jobs', description: 'The system compares your verified profile with current job requirements.' },
-  { step: '03', title: 'Prepare your application', description: 'Review each match and create an editable ATS friendly CV for the role.' },
+const faqs = [
+  { question: 'Who is this platform for?', answer: 'University students who want to organise their skills and achievements, understand job requirements and prepare their applications. Administrators review submitted evidence and manage assessments.' },
+  { question: 'How are my skills verified?', answer: 'An administrator reviews your linked project or certification evidence. A skill becomes verified when its supporting work has been approved. Assessment results are shown separately.' },
+  { question: 'What does AI help me with?', answer: 'AI helps organise uploaded CV text, review your writing and compare it with a role. Navi can explain your next step or run a practice interview using your selected CV. You choose which suggestions to use; uploaded claims do not become verified skills.' },
+  { question: 'Can I download my information?', answer: 'Yes. Download your skills profile as a PDF, and your edited CV as a PDF or Word document. Keep a copy ready for your next application.' },
 ]
+function selectFeature(index: number) { activeFeature.value = index }
 </script>
 
 <template>
-  <div class="landing-page min-h-screen">
-    <!-- Navigation -->
-    <nav class="fixed top-0 z-50 w-full border-b border-white/[0.06] bg-[#080d1c]/80 backdrop-blur-xl">
-      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <RouterLink to="/" class="text-white">
-          <BrandLogo size="sm" />
-        </RouterLink>
-        <div class="flex items-center gap-3">
-          <Button variant="ghost" class="text-slate-300 hover:bg-white/5 hover:text-white" as-child>
-            <RouterLink to="/login">Log in</RouterLink>
-          </Button>
-          <Button class="bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500" as-child>
-            <RouterLink to="/register">Get started</RouterLink>
-          </Button>
+  <div class="experience-landing">
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <header class="marketing-header">
+      <nav class="landing-container flex h-22 items-center justify-between gap-4" aria-label="Main navigation">
+        <RouterLink to="/" class="marketing-brand" aria-label="Skills and Career home"><BrandLogo size="sm" /></RouterLink>
+        <div class="hidden items-center gap-9 text-sm lg:flex"><a href="#features">The platform</a><a href="#how-it-works">How it works</a><a href="#questions">FAQs</a></div>
+        <div class="flex items-center gap-3"><RouterLink to="/login" class="marketing-login">Log in</RouterLink><RouterLink to="/register" class="marketing-button small hidden sm:inline-flex">Get started <ArrowUpRight class="size-4" /></RouterLink><button class="flex size-11 items-center justify-center rounded-lg border border-white/15 lg:hidden" :aria-expanded="mobileMenu" aria-controls="landing-menu" :aria-label="mobileMenu ? 'Close menu' : 'Open menu'" @click="mobileMenu = !mobileMenu"><X v-if="mobileMenu" class="size-5" /><Menu v-else class="size-5" /></button></div>
+      </nav>
+      <nav v-if="mobileMenu" id="landing-menu" class="landing-container flex flex-col gap-1 border-t border-white/10 py-4 lg:hidden" aria-label="Mobile navigation"><a href="#features" @click="mobileMenu = false">The platform</a><a href="#how-it-works" @click="mobileMenu = false">How it works</a><a href="#questions" @click="mobileMenu = false">FAQs</a></nav>
+    </header>
+
+    <main id="main-content">
+      <section class="editorial-hero">
+        <div class="landing-container hero-layout">
+          <div class="hero-copy">
+            <p class="marketing-eyebrow"><span class="status-dot"></span> Built for your next chapter</p>
+            <h1>Your skills<br />deserve to <br />be <span>seen.</span><svg class="hero-underline" viewBox="0 0 230 16" fill="none" aria-hidden="true"><path d="M3 10C66 1 155 1 225 8M33 14c63-5 127-5 175-2" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg></h1>
+            <p class="hero-description">Turn the work you've done into a story worth showing. Build your skills profile, prove your strengths and move towards the career you want.</p>
+            <div class="hero-actions"><RouterLink to="/register" class="marketing-button">Start building your profile <ArrowUpRight class="size-4" /></RouterLink><a href="#how-it-works" class="watch-link"><span><Play class="size-3.5" fill="currentColor" /></span> See it in action</a></div>
+            <div class="hero-note"><ShieldCheck class="size-4" /><span>Your achievements. Backed by your work.</span></div>
+          </div>
+          <div class="hero-visual">
+            <div class="photo-outline" aria-hidden="true"></div>
+            <figure class="student-photo"><img src="/media/student-studio.webp" width="1456" height="1092" fetchpriority="high" alt="Illustrative scene of university students working on a project together." /><figcaption><span class="photo-caption-line"></span> Great things start with the work you do today.</figcaption></figure>
+            <div class="evidence-float"><span class="evidence-icon"><FolderCheck class="size-5" /></span><div><p>More than a skill on a CV.</p><span>Work you can point to.</span></div><ArrowUpRight class="size-4" /></div>
+            <div class="hero-corner"><Sparkles class="corner-symbol" aria-hidden="true" /><span>Learn it.<br />Build it.<br /><strong>Show it.</strong></span></div>
+          </div>
         </div>
-      </div>
-    </nav>
+        <div class="landing-container"><div class="capability-strip"><span>ONE CONNECTED WORKSPACE</span><p><Code2 /> Skills & projects</p><p><ShieldCheck /> Evidence & verification</p><p><BriefcaseBusiness /> Career opportunities</p></div></div>
+      </section>
 
-    <!-- Hero Section -->
-    <section class="relative overflow-hidden bg-[#080d1c] pt-16">
-      <!-- Background effects -->
-      <div class="absolute inset-0">
-        <div class="absolute left-1/4 top-0 h-[600px] w-[600px] rounded-full bg-indigo-600/15 blur-[128px]"></div>
-        <div class="absolute right-0 top-1/4 h-[400px] w-[500px] rounded-full bg-violet-600/10 blur-[100px]"></div>
-        <div class="absolute bottom-0 left-0 h-[300px] w-[400px] rounded-full bg-cyan-600/8 blur-[100px]"></div>
-        <!-- Decorative shapes -->
-        <svg class="absolute right-[-5%] top-[10%] h-[500px] w-[500px] opacity-[0.04]" viewBox="0 0 400 400" fill="none">
-          <circle cx="200" cy="200" r="180" stroke="currentColor" stroke-width="0.5" class="text-indigo-300" />
-          <circle cx="200" cy="200" r="130" stroke="currentColor" stroke-width="0.5" class="text-violet-300" />
-          <circle cx="200" cy="200" r="80" stroke="currentColor" stroke-width="0.5" class="text-cyan-300" />
-        </svg>
-        <svg class="absolute -left-[10%] bottom-[5%] h-[400px] w-[400px] opacity-[0.03]" viewBox="0 0 400 400" fill="none">
-          <path d="M50 200 Q200 50 350 200 Q200 350 50 200Z" stroke="currentColor" stroke-width="0.8" class="text-indigo-300" />
-          <path d="M100 200 Q200 100 300 200 Q200 300 100 200Z" stroke="currentColor" stroke-width="0.5" class="text-violet-300" />
-        </svg>
-        <!-- Top flowing curve -->
-        <svg class="absolute left-0 top-0 w-full opacity-[0.06]" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path d="M0,160 C360,50 720,280 1080,120 S1440,200 1440,200 L1440,0 L0,0 Z" fill="url(#heroGrad)" />
-          <defs><linearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#818cf8" /><stop offset="50%" stop-color="#a78bfa" /><stop offset="100%" stop-color="#22d3ee" /></linearGradient></defs>
-        </svg>
-      </div>
-
-      <div class="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:gap-8 lg:py-36">
-        <!-- Left: Text content -->
-        <div class="flex flex-col justify-center">
-          <div class="mb-6 flex flex-wrap items-center gap-3">
-            <span class="text-xs font-semibold uppercase tracking-[0.2em] text-white">Student Competency Platform</span>
-          </div>
-
-          <h1 class="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.5rem]">
-            Your digital skills,
-            <span class="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              verified and portable.
-            </span>
-          </h1>
-
-          <p class="mt-6 max-w-lg text-lg leading-relaxed text-slate-400">
-            DigitalPassport centralises your skills, projects, certifications, and assessment results into one verified profile. Present your competencies with confidence.
-          </p>
-
-          <div class="mt-10 flex flex-wrap gap-4">
-            <Button size="lg" class="bg-indigo-600 px-8 text-white shadow-xl shadow-indigo-500/25 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/40" as-child>
-              <RouterLink to="/register">
-                Create your passport
-                <ArrowUpRight class="ml-1.5 size-4" />
-              </RouterLink>
-            </Button>
-            <Button size="lg" variant="ghost" class="border border-white/10 text-slate-300 hover:bg-white/5 hover:text-white" as-child>
-              <RouterLink to="/login">Sign in</RouterLink>
-            </Button>
-          </div>
-
-          <!-- Mini stats -->
-          <div class="mt-14 flex gap-10">
-            <div>
-              <p class="text-2xl font-bold text-white">PDF</p>
-              <p class="mt-1 text-sm text-slate-500">Passport Export</p>
+      <section id="features" class="marketing-section">
+        <div class="landing-container">
+          <div class="section-heading-row"><div><p class="marketing-eyebrow">Your potential, made visible</p><h2>A lot goes into your future.<br /><span>Bring it all together.</span></h2></div><p>Your coursework, side projects and achievements deserve more than a folder on your laptop.</p></div>
+          <div class="feature-explorer">
+            <div class="feature-options" role="tablist" aria-label="Explore platform features" aria-orientation="vertical">
+              <button v-for="(feature, index) in features" :id="'feature-tab-' + index" :key="feature.label" role="tab" :aria-selected="activeFeature === index" :aria-controls="'feature-panel-' + index" :tabindex="activeFeature === index ? 0 : -1" :class="{ selected: activeFeature === index }" @click="selectFeature(index)" @keydown.down.prevent="selectFeature((index + 1) % features.length); ($event.currentTarget as HTMLElement).parentElement?.querySelectorAll('button')[(index + 1) % features.length]?.focus()" @keydown.up.prevent="selectFeature((index + features.length - 1) % features.length); ($event.currentTarget as HTMLElement).parentElement?.querySelectorAll('button')[(index + features.length - 1) % features.length]?.focus()"><span class="feature-number">0{{ index + 1 }}</span><div><h3>{{ feature.label }}</h3><p>{{ feature.copy }}</p></div><ArrowUpRight class="size-5 shrink-0" /></button>
             </div>
-            <div class="h-10 w-px bg-white/10"></div>
-            <div>
-              <p class="text-2xl font-bold text-white">AI</p>
-              <p class="mt-1 text-sm text-slate-500">Job Matching</p>
-            </div>
-            <div class="h-10 w-px bg-white/10"></div>
-            <div>
-              <p class="flex items-center gap-1 text-2xl font-bold text-white">
-                <ShieldCheck class="size-5 text-emerald-400" />
-                Verified
-              </p>
-              <p class="mt-1 text-sm text-slate-500">Admin Approved</p>
+            <div v-for="(feature, index) in features" v-show="activeFeature === index" :id="'feature-panel-' + index" :key="feature.title" role="tabpanel" :aria-labelledby="'feature-tab-' + index" class="connection-panel" tabindex="0">
+              <div class="connection-heading"><component :is="feature.icon" class="size-5" /><span>{{ feature.title }}</span></div>
+              <div class="connection-map" aria-hidden="true"><svg viewBox="0 0 560 340" preserveAspectRatio="none"><path d="M90 70 Q280 60 280 170 M470 70 Q280 60 280 170 M90 270 Q280 280 280 170 M470 270 Q280 280 280 170" fill="none" stroke="currentColor" stroke-width="1.5" /><circle cx="180" cy="98" r="4" fill="var(--marketing-teal)" /></svg><div class="map-node node-1"><Code2 />{{ feature.nodes[0] }}</div><div class="map-node node-2"><Award />{{ feature.nodes[1] }}</div><div class="map-node node-3"><BookOpenCheck />{{ feature.nodes[2] }}</div><div class="map-node node-4"><ArrowUpRight />{{ feature.nodes[3] }}</div><div class="map-centre"><Layers3 class="size-7" /><strong>{{ feature.centre }}</strong></div></div>
+              <p class="connection-footnote">{{ feature.detail }}</p>
             </div>
           </div>
         </div>
+      </section>
 
-        <!-- Right: Hero illustration -->
-        <div class="flex items-center justify-center lg:justify-end">
-          <div class="relative">
-            <div class="absolute -inset-4 rounded-3xl bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-cyan-500/20 blur-2xl"></div>
-            <img
-              src="/hero-illustration.jpg"
-              alt="DigitalPassport – Verified digital skills for university students"
-              class="relative w-full max-w-[540px] rounded-2xl border border-white/10 shadow-2xl shadow-indigo-500/10"
-            />
+      <section id="how-it-works" class="marketing-section walkthrough-section">
+        <div class="landing-container walkthrough-layout">
+          <div><p class="marketing-eyebrow">See the bigger picture</p><h2>From learning<br />to your <br /><span>next opportunity.</span></h2><p class="section-description">A simple flow that connects your achievements to the opportunities ahead. Here's how it comes together.</p><ol class="walkthrough-steps"><li><span>01</span><div><h3>Add your skills & supporting work</h3><p>Projects, certifications and the evidence behind them.</p></div></li><li><span>02</span><div><h3>Build a verified record</h3><p>Follow reviews and strengthen your profile.</p></div></li><li><span>03</span><div><h3>Explore roles & prepare your CV</h3><p>Understand your fit and make your next move.</p></div></li></ol></div>
+          <div class="walkthrough-media"><div class="media-label"><span class="status-dot"></span> THE PRODUCT, IN 19 SECONDS</div><ProductVideo /></div>
+        </div>
+      </section>
+
+      <section class="marketing-section">
+        <div class="landing-container">
+          <div class="section-heading-row"><div><p class="marketing-eyebrow">Ready for what comes next</p><h2>Good skills.<br /><span>A clearer direction.</span></h2></div><p>Tools to help you make sense of job requirements and put your experience into words.</p></div>
+          <div class="career-features">
+            <article class="career-feature"><span class="career-index">01 / DISCOVER</span><div class="career-symbol"><BriefcaseBusiness /></div><h3>Find where your<br />skills fit.</h3><p>Explore current job listings with matched skills, areas to develop and a clear source for every role.</p><div class="feature-tags"><span><Check />Matched skills</span><span>Skill gaps</span><span>Listing source</span></div><RouterLink to="/register">Explore career tools <ArrowUpRight /></RouterLink></article>
+            <article class="career-feature cv-feature"><span class="career-index">02 / PREPARE</span><div class="career-symbol"><FileText /></div><h3>Your experience.<br />Well presented.</h3><p>Create from your verified records or upload an existing CV. Organise it with AI, review suggestions with Navi and export when you’re ready.</p><div class="feature-tags"><span>Editable</span><span>PDF</span><span>Word</span></div><RouterLink to="/register">Create or upload your CV <ArrowUpRight /></RouterLink></article>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Features Section -->
-    <section class="relative bg-[#060a17] py-24">
-      <!-- Soft top divider wave -->
-      <svg class="absolute left-0 top-0 w-full -translate-y-[98%] opacity-100" viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,80 C480,20 960,60 1440,30 L1440,80 Z" fill="#060a17" /></svg>
-      <!-- Decorative ring -->
-      <div class="absolute right-[8%] top-[15%] size-[280px] rounded-full border border-indigo-500/[0.04] opacity-60"></div>
-      <div class="absolute right-[10%] top-[17%] size-[220px] rounded-full border border-violet-500/[0.04] opacity-40"></div>
-      <div class="relative mx-auto max-w-7xl px-6">
-        <div class="mb-16 text-center">
-          <div class="mb-3 inline-flex items-center gap-2">
-            <span class="h-3 w-1 rounded-full bg-indigo-400"></span>
-            <span class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">Core Capabilities</span>
-          </div>
-          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Everything you need in one place
-          </h2>
-          <p class="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
-            Document, verify, and present your digital skills with a platform designed for university students.
-          </p>
-        </div>
-
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div
-            v-for="feature in highlights"
-            :key="feature.title"
-            class="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-white/[0.04]"
-          >
-            <!-- Gradient bg on hover -->
-            <div :class="['absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover:opacity-100', feature.color]"></div>
-
-            <div class="relative">
-              <div :class="['mb-4 flex size-12 items-center justify-center rounded-xl border bg-white/5', feature.borderColor]">
-                <component :is="feature.icon" :class="['size-6', feature.iconColor]" />
-              </div>
-              <h3 class="mb-2 text-lg font-semibold text-white">{{ feature.title }}</h3>
-              <p class="text-sm leading-relaxed text-slate-400">{{ feature.description }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Career Tools Section -->
-    <section class="relative overflow-hidden bg-[#080d1c] py-24">
-      <div class="absolute right-0 top-0 h-[500px] w-[500px] rounded-full bg-violet-600/8 blur-[120px]"></div>
-      <div class="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-indigo-600/8 blur-[100px]"></div>
-
-      <div class="relative mx-auto max-w-7xl px-6">
-        <div class="grid gap-16 lg:grid-cols-2 lg:items-center">
-          <!-- Left: Content -->
-          <div>
-            <div class="mb-4 flex items-center gap-2.5">
-              <span class="h-4 w-1 rounded-full bg-gradient-to-b from-violet-400 to-indigo-400"></span>
-              <span class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">AI Career Support</span>
-            </div>
-
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Turn verified skills into career opportunities
-            </h2>
-            <p class="mt-4 text-lg leading-relaxed text-slate-400">
-              Discover suitable jobs based on the skills you can prove, then prepare a clear ATS friendly CV using the same trusted profile.
-            </p>
-
-            <div class="mt-10 space-y-6">
-              <div v-for="step in steps" :key="step.step" class="flex gap-5">
-                <div class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/10 text-sm font-bold text-violet-300">
-                  {{ step.step }}
-                </div>
-                <div>
-                  <h4 class="font-semibold text-white">{{ step.title }}</h4>
-                  <p class="mt-1 text-sm text-slate-400">{{ step.description }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Example card -->
-          <div class="relative">
-            <div class="absolute -inset-4 rounded-3xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 blur-xl"></div>
-            <div class="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d1224]/90 p-8 backdrop-blur-xl">
-              <!-- Header -->
-              <div class="mb-6 flex items-center gap-3">
-                <div class="flex size-10 items-center justify-center rounded-xl bg-violet-500/10">
-                  <BrainCircuit class="size-5 text-violet-400" />
-                </div>
-                <div>
-                  <p class="font-semibold text-white">Recommended Job</p>
-                  <p class="text-xs text-slate-500">Based on your verified profile</p>
-                </div>
-                <div class="ml-auto rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
-                  91% match
-                </div>
-              </div>
-
-              <!-- Recommendations -->
-              <div class="space-y-3">
-                <p class="text-sm font-medium text-slate-300">Junior Full Stack Developer</p>
-                <div class="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-                  <div class="flex items-start gap-3">
-                    <ChevronRight class="mt-0.5 size-4 shrink-0 text-emerald-400" />
-                    <div>
-                      <p class="text-sm font-medium text-white">Strong skill match</p>
-                      <p class="mt-1 text-xs text-slate-500">PHP, MySQL, JavaScript, and REST API</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="rounded-xl border border-cyan-500/10 bg-cyan-500/5 p-4">
-                  <div class="flex items-start gap-3">
-                    <ChevronRight class="mt-0.5 size-4 shrink-0 text-cyan-400" />
-                    <div>
-                      <p class="text-sm font-medium text-white">Matches your preferences</p>
-                      <p class="mt-1 text-xs text-slate-500">Melaka, full time, entry level</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="rounded-xl border border-violet-500/10 bg-violet-500/5 p-4">
-                  <div class="flex items-start gap-3">
-                    <ChevronRight class="mt-0.5 size-4 shrink-0 text-violet-400" />
-                    <div>
-                      <p class="text-sm font-medium text-white">One skill to strengthen</p>
-                      <p class="mt-1 text-xs text-slate-500">Basic automated testing experience</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Footer -->
-              <div class="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-slate-500">
-                <span class="flex items-center gap-1.5 text-slate-400">
-                  <BrainCircuit class="size-3.5 text-violet-400" />
-                  Explainable job match
-                </span>
-                <span class="text-[11px] text-slate-500">Source shown with every listing</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-700 py-24">
-      <!-- Decorative flowing shapes -->
-      <svg class="absolute left-0 top-0 h-full w-full opacity-[0.08]" viewBox="0 0 1440 400" preserveAspectRatio="none">
-        <path d="M-100,300 Q300,100 600,250 T1200,150 T1600,300" stroke="white" stroke-width="1" fill="none" />
-        <path d="M-100,350 Q400,150 700,280 T1300,180 T1600,350" stroke="white" stroke-width="0.5" fill="none" />
-      </svg>
-      <div class="absolute -left-20 top-1/2 size-[300px] -translate-y-1/2 rounded-full bg-white/5 blur-[80px]"></div>
-      <div class="absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-white/5 blur-[100px]"></div>
-
-      <div class="relative mx-auto max-w-7xl px-6 text-center">
-        <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Ready to build your digital passport?
-        </h2>
-        <p class="mx-auto mt-4 max-w-xl text-lg text-indigo-100/80">
-          Start documenting your skills today. It only takes a minute to create your profile.
-        </p>
-        <div class="mt-10">
-          <Button size="lg" class="bg-white px-10 text-indigo-700 shadow-xl shadow-black/20 transition-all hover:bg-indigo-50 hover:shadow-black/30" as-child>
-            <RouterLink to="/register">
-              Get started for free
-              <ArrowUpRight class="ml-1.5 size-4" />
-            </RouterLink>
-          </Button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="border-t border-white/[0.06] bg-[#060a17] py-8">
-      <div class="mx-auto max-w-7xl px-6 text-center text-sm text-slate-500">
-        <p>© 2026 DigitalPassport | BITU 3923 Workshop 2 Project, UTeM</p>
-      </div>
-    </footer>
+      <section id="questions" class="marketing-section faq-section"><div class="landing-container faq-layout"><div><p class="marketing-eyebrow">A little more clarity</p><h2>Before<br /><span>you begin.</span></h2></div><div class="faq-list"><details v-for="faq in faqs" :key="faq.question"><summary>{{ faq.question }}<Plus class="size-5 shrink-0" /></summary><p>{{ faq.answer }}</p></details></div></div></section>
+      <section class="closing-section"><div class="landing-container"><div class="closing-content"><span class="marketing-eyebrow">Your future is a work in progress.</span><h2>Make your next<br /><span>step count.</span></h2><RouterLink to="/register" class="marketing-button">Create your account <ArrowUpRight class="size-4" /></RouterLink><span class="closing-orbit" aria-hidden="true"></span></div></div></section>
+    </main>
+    <footer class="marketing-footer"><div class="landing-container"><div class="footer-top"><RouterLink to="/" class="marketing-brand"><BrandLogo size="sm" /></RouterLink><p>Build your skills.<br />Open up your possibilities.</p><a href="#main-content">Back to top <ArrowUpRight class="size-4" /></a></div><div class="footer-bottom"><span>Student skills & career development</span><span>BITU 3923 Workshop 2 · UTeM · {{ new Date().getFullYear() }}</span></div></div></footer>
   </div>
 </template>

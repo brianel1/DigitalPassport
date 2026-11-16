@@ -6,13 +6,14 @@ use App\Models\Certification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class CertificationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
         $this->ensureStudent($request);
-        $certifications = $request->user()->certifications()->with('evidenceFiles')->latest()->get();
+        $certifications = $request->user()->certifications()->with(['evidenceFiles', 'skills', 'reviewer'])->latest()->get();
 
         return response()->json(['data' => $certifications->map(fn (Certification $item) => $this->certificationData($item))]);
     }
@@ -20,6 +21,17 @@ class CertificationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->ensureStudent($request);
+        return $this->saveRecord($request, new Certification(), 201);
+    }
+
+    public function update(Request $request, Certification $certification): JsonResponse
+    {
+        $this->ensureOwner($request, $certification);
+        return $this->saveRecord($request, $certification, 200);
+    }
+
+    private function saveRecord(Request $request, Certification $record, int $status): JsonResponse
+    {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'issuing_organization' => ['required', 'string', 'max:255'],
@@ -27,21 +39,12 @@ class CertificationController extends Controller
             'expiry_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'credential_id' => ['nullable', 'string', 'max:120'],
             'credential_url' => ['nullable', 'url', 'max:255'],
-            'evidence' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'evidence' => [$record->exists && $record->evidenceFiles()->exists() ? 'nullable' : 'required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'skill_ids' => ['sometimes', 'array'],
+            'skill_ids.*' => ['integer', 'distinct', Rule::exists('skills', 'id')->where('user_id', $request->user()->id)],
         ]);
-
-        $certification = $request->user()->certifications()->create(collect($validated)->except('evidence')->all());
-        $file = $request->file('evidence');
-        $certification->evidenceFiles()->create([
-            'user_id' => $request->user()->id,
-            'disk' => 'local',
-            'path' => $file->store("evidence/certifications/{$certification->id}"),
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-            'size' => $file->getSize(),
-        ]);
-
-        return response()->json($this->certificationData($certification->refresh()->load('evidenceFiles')), 201);
+        $record = app(\App\Services\EvidenceWorkflow::class)->save($request, $record, $validated);
+        return response()->json($this->certificationData($record), $status);
     }
 
     public function destroy(Request $request, Certification $certification): JsonResponse
@@ -51,7 +54,9 @@ class CertificationController extends Controller
             Storage::disk($evidence->disk)->delete($evidence->path);
             $evidence->delete();
         }
+        $linked = $certification->skills()->pluck('skills.id')->all();
         $certification->delete();
+        app(\App\Services\EvidenceWorkflow::class)->invalidateUnsupportedSkills($linked);
 
         return response()->json(['message' => 'Certification deleted successfully.']);
     }
@@ -71,15 +76,18 @@ class CertificationController extends Controller
     private function certificationData(Certification $certification): array
     {
         return [
+            ...app(\App\Services\EvidenceWorkflow::class)->details($certification),
             'id' => $certification->id,
             'title' => $certification->title,
             'issuingOrganization' => $certification->issuing_organization,
             'issueDate' => $certification->issue_date->toDateString(),
+            'expired' => $certification->expiry_date?->lt(today()) ?? false,
+            'credentialUrl' => $certification->credential_url,
             'expiryDate' => $certification->expiry_date?->toDateString(),
             'referenceNumber' => $certification->credential_id,
             'evidenceFiles' => $certification->evidenceFiles->pluck('original_name')->values(),
             'status' => $certification->status,
-            'linkedSkills' => [],
+            'linkedSkills' => $certification->skills->pluck('id')->values(),
             'adminRemarks' => $certification->admin_remarks,
             'createdAt' => $certification->created_at->toISOString(),
             'updatedAt' => $certification->updated_at->toISOString(),

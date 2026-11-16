@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class VerificationReview extends Model
 {
-    protected $fillable = ['reviewer_id', 'decision', 'remarks'];
+    protected $fillable = ['reviewer_id', 'decision', 'remarks', 'record_snapshot'];
+
+    protected function casts(): array { return ['record_snapshot' => 'array']; }
 
     public function reviewer(): BelongsTo
     {

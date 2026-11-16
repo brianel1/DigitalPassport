@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import type { AuthState } from '@/types'
 import { getCurrentUser, loginUser, logoutUser, registerUser } from '@/lib/api'
+import { clearAuth, readAuth, writeAuth } from '@/lib/authStorage'
 
 const emptyState: AuthState = {
   user: null,
@@ -12,13 +13,16 @@ const state = ref<AuthState>({ ...emptyState })
 
 function save(auth: AuthState) {
   state.value = auth
-  localStorage.setItem('dp_auth', JSON.stringify(auth))
+  writeAuth(auth)
 }
 
 function clear() {
   state.value = { ...emptyState }
-  localStorage.removeItem('dp_auth')
+  clearAuth()
 }
+
+window.addEventListener('auth:expired', clear)
+let validating: Promise<boolean> | null = null
 
 export function useAuth() {
   const user = computed(() => state.value.user)
@@ -45,35 +49,35 @@ export function useAuth() {
   async function logout(): Promise<void> {
     try {
       if (state.value.token) await logoutUser()
+    } catch {
+      // Local sign-out still succeeds if the server has been stopped.
     } finally {
       clear()
     }
   }
 
   function restore() {
-    const saved = localStorage.getItem('dp_auth')
-    if (!saved) return
-
-    try {
-      const parsed = JSON.parse(saved) as AuthState
-      if (!parsed.user || !parsed.token) {
-        clear()
-        return
-      }
-      state.value = { ...parsed, isAuthenticated: true }
-    } catch {
-      clear()
-    }
+    const saved = readAuth()
+    // Cached identity is not proof of authentication. The route guard checks /api/user.
+    state.value = saved ? { ...saved, isAuthenticated: false } : { ...emptyState }
   }
 
-  async function refreshUser(): Promise<void> {
-    if (!state.value.token) return
-    try {
-      const currentUser = await getCurrentUser()
-      save({ ...state.value, user: currentUser, isAuthenticated: true })
-    } catch {
-      clear()
-    }
+  async function refreshUser(): Promise<boolean> {
+    if (validating) return validating
+    const token = state.value.token
+    if (!token) return false
+    validating = (async () => {
+      try {
+        const currentUser = await getCurrentUser()
+        if (state.value.token !== token) return false
+        save({ user: currentUser, token, isAuthenticated: true })
+        return true
+      } catch {
+        if (state.value.token === token) clear()
+        return false
+      } finally { validating = null }
+    })()
+    return validating
   }
 
   return { user, isAuthenticated, isAdmin, isStudent, login, register, logout, restore, refreshUser }

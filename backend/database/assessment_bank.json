@@ -1,0 +1,42 @@
+[
+  {
+    "title": "JavaScript Fundamentals",
+    "skill_names": ["JavaScript"],
+    "category": "programming",
+    "description": "Test JavaScript syntax, functions, arrays, asynchronous work, and browser events.",
+    "time_limit_minutes": 15,
+    "passing_score": 60,
+    "questions": [
+      { "question": "Which keyword declares a constant in JavaScript?", "options": ["var", "let", "const", "static"], "correct_option": 2 },
+      { "question": "Which method converts a JSON string into an object?", "options": ["JSON.stringify()", "JSON.parse()", "JSON.convert()", "JSON.decode()"], "correct_option": 1 },
+      { "question": "What does the strict equality operator compare?", "options": ["Value only", "Type only", "Value and type", "Object names"], "correct_option": 2 },
+      { "question": "What is the scope of a variable declared with let inside a block?", "options": ["Global", "Function only", "Block", "Module only"], "correct_option": 2 },
+      { "question": "Which array method creates a new array by transforming each element?", "options": ["forEach()", "map()", "filter()", "push()"], "correct_option": 1 },
+      { "question": "What does an async function always return?", "options": ["A string", "A Promise", "A callback", "An array"], "correct_option": 1 },
+      { "question": "Which method prevents the default browser action for an event?", "options": ["stopPropagation()", "preventDefault()", "removeEventListener()", "dispatchEvent()"], "correct_option": 1 },
+      { "question": "What does optional chaining return when a property before ?. is null or undefined?", "options": ["An exception", "false", "undefined", "An empty object"], "correct_option": 2 },
+      { "question": "What happens when one input Promise rejects in Promise.all()?", "options": ["The combined Promise rejects", "The rejected input is ignored", "The combined Promise resolves with null", "All inputs restart"], "correct_option": 0 },
+      { "question": "Which statement about arrow functions is correct?", "options": ["They bind their own this", "They inherit this from the surrounding scope", "They cannot return values", "They must be asynchronous"], "correct_option": 1 }
+    ]
+  },
+  {
+    "title": "SQL and Database Basics",
+    "skill_names": ["SQL"],
+    "category": "databases",
+    "description": "Assess SQL queries, joins, grouping, keys, filtering, and transactions.",
+    "time_limit_minutes": 15,
+    "passing_score": 60,
+    "questions": [
+      { "question": "Which statement retrieves rows from a database?", "options": ["GET", "FETCH", "SELECT", "RETRIEVE"], "correct_option": 2 },
+      { "question": "What is the purpose of a primary key?", "options": ["Sort every query", "Identify each row uniquely", "Encrypt a table", "Join every table"], "correct_option": 1 },
+      { "question": "Which clause filters grouped results?", "options": ["WHERE", "HAVING", "ORDER BY", "LIMIT"], "correct_option": 1 },
+      { "question": "Which join keeps every row from the left table even without a match?", "options": ["INNER JOIN", "LEFT JOIN", "CROSS JOIN", "SELF JOIN"], "correct_option": 1 },
+      { "question": "Which clause groups rows before aggregate functions are applied?", "options": ["GROUP BY", "ORDER BY", "LIMIT", "DISTINCT"], "correct_option": 0 },
+      { "question": "Which function counts rows in a result group?", "options": ["SUM(*)", "COUNT(*)", "TOTAL(*)", "NUMBER(*)"], "correct_option": 1 },
+      { "question": "Which clause filters individual rows before grouping?", "options": ["HAVING", "GROUP BY", "WHERE", "ORDER BY"], "correct_option": 2 },
+      { "question": "What does a foreign key normally reference?", "options": ["A table name", "A key in another table", "A database password", "A query result"], "correct_option": 1 },
+      { "question": "Which expression sorts results from highest to lowest value?", "options": ["ORDER BY score ASC", "ORDER BY score DESC", "GROUP BY score", "WHERE score DESC"], "correct_option": 1 },
+      { "question": "What does ROLLBACK do inside a transaction?", "options": ["Commits pending changes", "Undoes uncommitted changes", "Deletes the database", "Creates a backup"], "correct_option": 1 }
+    ]
+  }
+]

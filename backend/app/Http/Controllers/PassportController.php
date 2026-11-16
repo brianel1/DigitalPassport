@@ -12,8 +12,9 @@ class PassportController extends Controller
     {
         abort_unless($request->user()->role === 'student', 403, 'Student access is required.');
 
-        $path = $service->pdf($request->user());
+        try { $path = $service->pdf($request->user()); app(\App\Services\SystemEventLog::class)->record('export','completed','Document export completed.'); }
+        catch (\Throwable $error) { app(\App\Services\SystemEventLog::class)->record('export','failed','Document export failed. Retry the export and inspect the server log if it repeats.'); throw $error; }
 
-        return response()->download($path, 'digital-passport.pdf')->deleteFileAfterSend(true);
+        return response()->download($path, 'skills-profile.pdf')->deleteFileAfterSend(true);
     }
 }

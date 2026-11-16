@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class JobRecommendationRun extends Model
 {
-    protected $fillable = ['user_id', 'profile_snapshot', 'preference_snapshot', 'model_name', 'status', 'failure_reason'];
+    protected $fillable = ['user_id', 'profile_snapshot', 'preference_snapshot', 'model_name', 'status', 'failure_reason', 'ai_insights'];
 
     protected function casts(): array
     {
-        return ['profile_snapshot' => 'array', 'preference_snapshot' => 'array'];
+        return ['profile_snapshot' => 'array', 'preference_snapshot' => 'array', 'ai_insights' => 'array'];
     }
 
     public function user(): BelongsTo

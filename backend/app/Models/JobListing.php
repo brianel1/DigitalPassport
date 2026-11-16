@@ -19,6 +19,7 @@ class JobListing extends Model
             'published_at' => 'datetime',
             'expires_at' => 'datetime',
             'fetched_at' => 'datetime',
+            'link_checked_at' => 'datetime', 'link_status' => 'integer',
             'raw_payload' => 'array',
         ];
     }

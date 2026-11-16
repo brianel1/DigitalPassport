@@ -24,3 +24,15 @@ uploads/
 .vscode/
 .DS_Store
 Thumbs.db
+.venv-ocr*/
+
+# Personal working notes and generated design / QA reports (keep locally)
+/AGENTS.md
+/plan_to_enhance.md
+/PROJECT_TRACKER.md
+/prompt update latest dari aku.md
+/design-system/
+
+# Python bytecode
+__pycache__/
+*.py[cod]

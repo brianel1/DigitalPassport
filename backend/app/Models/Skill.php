@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Skill extends Model
 {
@@ -31,5 +32,15 @@ class Skill extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class);
+    }
+
+    public function certifications(): BelongsToMany
+    {
+        return $this->belongsToMany(Certification::class);
     }
 }

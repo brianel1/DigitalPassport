@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\JobListing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -58,6 +59,23 @@ class GeneratedCvTest extends TestCase
             ->assertDownload('aina-rahman-software-cv.docx');
     }
 
+    public function test_incomplete_imported_projects_can_be_saved_and_reviewed(): void
+    {
+        config()->set('services.ollama.model', null);
+        Sanctum::actingAs(User::factory()->create());
+        $draft=$this->postJson('/api/student/cvs/upload', ['text'=>"Aina Rahman\naina@example.test\nProjects\nCampus App\nSkills: Laravel, PHP, MySQL"])->assertCreated();
+        $content=$draft->json('content');
+        $content['projects']=[['title'=>'Campus App','description'=>'','technologies'=>[]]];
+        $content['education']=[['institution'=>'','qualification'=>'','period'=>'']];
+        $this->putJson('/api/student/cvs/'.$draft->json('id'), ['title'=>'Draft','content'=>$content])->assertOk()->assertJsonPath('content.projects.0.description','');
+        $review=$this->postJson('/api/student/cvs/'.$draft->json('id').'/review')->assertOk();
+        $this->assertFalse(collect($review->json('analysis.checks'))->firstWhere('key','experience')['passed']);
+        $this->assertFalse(collect($review->json('analysis.checks'))->firstWhere('key','education')['passed']);
+        $content['personal']['email']='invalid';
+        $invalid=$this->putJson('/api/student/cvs/'.$draft->json('id'), ['title'=>'Draft','content'=>$content])->assertUnprocessable();
+        $this->assertStringContainsString('contact email',$invalid->json('message'));
+    }
+
     public function test_student_cannot_edit_another_students_cv(): void
     {
         $owner = User::factory()->create();
@@ -75,14 +93,38 @@ class GeneratedCvTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_ollama_can_prepare_cv_wording_from_verified_records(): void
+    public function test_student_can_target_a_current_job_and_verified_skills_are_prioritised(): void
+    {
+        $student = User::factory()->create(['programme' => 'BITS']);
+        $student->skills()->createMany([
+            ['name' => 'Vue.js', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified'],
+            ['name' => 'Laravel', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified'],
+        ]);
+        $job = JobListing::create([
+            'source' => 'remotive', 'external_id' => 'current-1', 'title' => 'Backend Developer',
+            'company' => 'Real Company', 'location' => 'Remote', 'description' => 'Build APIs.',
+            'required_skills' => ['Laravel'], 'application_url' => 'https://example.com/job',
+            'fetched_at' => now(),
+        ]);
+        Sanctum::actingAs($student);
+
+        $this->postJson('/api/student/cvs', ['target_job_listing_id' => $job->id])
+            ->assertCreated()
+            ->assertJsonPath('targetJob.id', $job->id)
+            ->assertJsonPath('content.skills.0', 'Laravel');
+
+        $this->assertDatabaseHas('generated_cvs', ['user_id' => $student->id, 'target_job_listing_id' => $job->id]);
+    }
+
+    public function test_ai_review_keeps_original_profile_facts_until_user_applies_a_suggestion(): void
     {
         config()->set('services.ollama.model', 'qwen3:8b');
         Http::fake([
             '*127.0.0.1:11434/api/generate*' => Http::response([
                 'response' => json_encode([
-                    'summary' => 'Computing student with verified Laravel project experience.',
-                    'project_descriptions' => ['Built a verified Laravel application for portfolio management.'],
+                    'strengths' => ['Your Portfolio Manager project demonstrates Laravel.'],
+                    'suggestions' => ['Describe your personal contribution to Portfolio Manager.'],
+                    'rewrites' => [],
                 ]),
             ]),
         ]);
@@ -99,12 +141,14 @@ class GeneratedCvTest extends TestCase
 
         $this->postJson('/api/student/cvs')
             ->assertCreated()
-            ->assertJsonPath('content.summary', 'Computing student with verified Laravel project experience.')
-            ->assertJsonPath('content.projects.0.description', 'Built a verified Laravel application for portfolio management.');
+            ->assertJsonPath('content.summary', 'BITS student building a verified record of technical skills and project experience.')
+            ->assertJsonPath('content.projects.0.description', 'A Laravel application for portfolio records.')
+            ->assertJsonPath('analysis.suggestions.0', 'Describe your personal contribution to Portfolio Manager.');
 
         $this->assertDatabaseHas('generated_cvs', [
             'user_id' => $student->id,
             'model_name' => 'ollama:qwen3:8b',
         ]);
+        $this->assertSame('A Laravel application for portfolio records.', $student->generatedCvs()->first()->provenance['source_content']['projects'][0]['description']);
     }
 }

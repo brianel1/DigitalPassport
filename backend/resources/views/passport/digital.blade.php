@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Digital Skills Passport</title>
+    <title>Skills Profile</title>
     <style>
         @page { margin: 28px; }
         body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 10px; line-height: 1.45; }
@@ -21,7 +21,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="eyebrow">Digital Skills Passport</div>
+        <div class="eyebrow">Skills Profile</div>
         <h1>{{ $user->name }}</h1>
         <div>{{ $user->matric_no }} | {{ $user->programme }}</div>
         @if ($user->profile?->headline)
@@ -34,7 +34,7 @@
             <td style="padding-right: 8px;">
                 <h2>Verified skills</h2>
                 @forelse ($skills as $skill)
-                    <div class="item"><strong>{{ $skill->name }}</strong><span class="muted"> | {{ ucfirst($skill->proficiency) }}</span><br>{{ $skill->description }}</div>
+                    <div class="item"><strong>{{ $skill->name }}</strong><span class="muted"> | {{ ucfirst($skill->proficiency) }}</span><br>{{ $skill->description }}@if($skill->reviewer)<br><span class="muted">Verified by {{ $skill->reviewer->name }} · {{ $skill->reviewed_at?->toDateString() }}</span>@endif</div>
                 @empty
                     <div class="muted">No verified skills recorded.</div>
                 @endforelse
@@ -42,7 +42,7 @@
             <td style="padding-left: 8px;">
                 <h2>Verified projects</h2>
                 @forelse ($projects as $project)
-                    <div class="item"><strong>{{ $project->title }}</strong><br>{{ $project->description }}<br><span class="muted">{{ collect($project->technologies ?? [])->join(', ') }}</span></div>
+                    <div class="item"><strong>{{ $project->title }}</strong><br>{{ $project->description }}<br><span class="muted">{{ collect($project->technologies ?? [])->join(', ') }}</span>@if($project->reviewer)<br><span class="muted">Verified by {{ $project->reviewer->name }} · {{ $project->reviewed_at?->toDateString() }}</span>@endif</div>
                 @empty
                     <div class="muted">No verified projects recorded.</div>
                 @endforelse
@@ -52,18 +52,18 @@
 
     <h2>Certifications</h2>
     @forelse ($certifications as $certification)
-        <div class="item"><strong>{{ $certification->title }}</strong><span class="muted"> | {{ $certification->issuing_organization }} | {{ $certification->issue_date?->toDateString() }}</span></div>
+        <div class="item"><strong>{{ $certification->title }}</strong><span class="muted"> | {{ $certification->issuing_organization }} | {{ $certification->issue_date?->toDateString() }}</span>@if($certification->reviewer)<br><span class="muted">Verified by {{ $certification->reviewer->name }} · {{ $certification->reviewed_at?->toDateString() }}</span>@endif @if($certification->expiry_date)<br>Valid until {{ $certification->expiry_date->toDateString() }}@endif</div>
     @empty
         <div class="muted">No verified certifications recorded.</div>
     @endforelse
 
-    <h2>Passed assessments</h2>
+    <h2>Best passed assessment results</h2>
     @forelse ($attempts as $attempt)
         <div class="item"><strong>{{ $attempt->assessment?->title }}</strong><span class="score">{{ $attempt->percentage }}%</span><br><span class="muted">Completed {{ $attempt->submitted_at?->toDateString() }}</span></div>
     @empty
         <div class="muted">No passed assessments recorded.</div>
     @endforelse
 
-    <div class="footer">DigitalPassport | Universiti Teknikal Malaysia Melaka</div>
+    <div class="footer">Skills &amp; Career | Universiti Teknikal Malaysia Melaka</div>
 </body>
 </html>

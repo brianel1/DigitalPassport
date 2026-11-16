@@ -26,7 +26,7 @@ class SkillController extends Controller
     {
         $this->ensureStudent($request);
 
-        $skills = $request->user()->skills()->latest()->get()->map(fn (Skill $skill) => $this->skillData($skill));
+        $skills = $request->user()->skills()->with(['projects', 'certifications'])->latest()->get()->map(fn (Skill $skill) => $this->skillData($skill));
 
         return response()->json(['data' => $skills]);
     }
@@ -37,7 +37,7 @@ class SkillController extends Controller
         $validated = $this->validateSkill($request);
         $skill = $request->user()->skills()->create($validated);
 
-        return response()->json($this->skillData($skill->refresh()), 201);
+        return response()->json($this->skillData($skill->refresh()->load(['projects', 'certifications'])), 201);
     }
 
     public function update(Request $request, Skill $skill): JsonResponse
@@ -51,7 +51,7 @@ class SkillController extends Controller
             'admin_remarks' => null,
         ]);
 
-        return response()->json($this->skillData($skill->refresh()));
+        return response()->json($this->skillData($skill->refresh()->load(['projects', 'certifications'])));
     }
 
     public function destroy(Request $request, Skill $skill): JsonResponse
@@ -99,9 +99,11 @@ class SkillController extends Controller
             'proficiency' => $skill->proficiency,
             'description' => $skill->description ?? '',
             'status' => $skill->status,
-            'linkedProjects' => [],
-            'linkedCertifications' => [],
-            'linkedAssessments' => [],
+            'linkedProjects' => $skill->projects->pluck('id')->values(),
+            'linkedCertifications' => $skill->certifications->pluck('id')->values(),
+            'linkedAssessments' => app(\App\Services\AssessmentEvidence::class)->best($skill->user)->filter(fn ($a) => collect(app(\App\Services\AssessmentEvidence::class)->skills($a))->contains(fn ($name) => app(\App\Services\VerifiedEvidence::class)->normalise($name) === app(\App\Services\VerifiedEvidence::class)->normalise($skill->name)))->pluck('assessment_id')->values(),
+            'reviewerName' => $skill->reviewer?->name,
+            'reviewedAt' => $skill->reviewed_at?->toISOString(),
             'adminRemarks' => $skill->admin_remarks,
             'createdAt' => $skill->created_at->toISOString(),
             'updatedAt' => $skill->updated_at->toISOString(),

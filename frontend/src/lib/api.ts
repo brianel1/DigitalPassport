@@ -1,4 +1,5 @@
 import type { AdminUserDetail, AdminUserSummary, Assessment, AssessmentAttempt, Certification, ProficiencyLevel, Project, ReviewItem, Skill, SkillCategory, User } from '@/types'
+import { expireAuth, readAuth } from './authStorage'
 
 export interface HealthResponse {
   status: string
@@ -27,27 +28,21 @@ interface ErrorResponse {
 
 export class ApiError extends Error {
   public readonly status: number
+  public readonly fields: Record<string, string[]>
 
   constructor(
     message: string,
     status: number,
+    fields: Record<string, string[]> = {},
   ) {
     super(message)
     this.status = status
+    this.fields = fields
   }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const saved = localStorage.getItem('dp_auth')
-  let token: string | null = null
-
-  if (saved) {
-    try {
-      token = (JSON.parse(saved) as { token?: string }).token ?? null
-    } catch {
-      localStorage.removeItem('dp_auth')
-    }
-  }
+async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = readAuth()?.token ?? null
 
   const headers = new Headers(options.headers)
   headers.set('Accept', 'application/json')
@@ -55,13 +50,18 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   const response = await fetch(path, { ...options, headers })
+  if (response.status === 401) expireAuth(token)
+  return response
+}
 
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await authenticatedFetch(path, options)
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorResponse
     const firstValidationError = body.errors
       ? Object.values(body.errors).flat()[0]
       : undefined
-    throw new ApiError(firstValidationError ?? body.message ?? 'The request could not be completed.', response.status)
+    throw new ApiError(firstValidationError ?? body.message ?? 'The request could not be completed.', response.status, body.errors ?? {})
   }
 
   return (await response.json()) as T
@@ -99,30 +99,26 @@ export function registerUser(data: {
 }
 
 export function logoutUser(): Promise<{ message: string }> {
-  return apiRequest<{ message: string }>('/api/auth/logout', { method: 'POST' })
+  return apiRequest<{ message: string }>('/api/auth/logout', { method: 'POST', signal: AbortSignal.timeout(5000) })
 }
 
 export function getCurrentUser(): Promise<User> {
-  return apiRequest<User>('/api/user')
+  return apiRequest<User>('/api/user', { signal: AbortSignal.timeout(10000) })
 }
 
 export async function downloadPassport(): Promise<void> {
-  const saved = localStorage.getItem('dp_auth')
-  const token = saved ? (JSON.parse(saved) as { token?: string }).token : null
-  const response = await fetch('/api/student/passport/export', {
-    headers: { Accept: 'application/pdf', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  })
+  const response = await authenticatedFetch('/api/student/passport/export')
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorResponse
-    throw new ApiError(body.message ?? 'The passport could not be downloaded.', response.status)
+    throw new ApiError(body.message ?? 'The skills profile could not be downloaded.', response.status)
   }
 
   const blob = await response.blob()
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = 'digital-passport.pdf'
+  anchor.download = 'skills-profile.pdf'
   anchor.click()
   URL.revokeObjectURL(url)
 }
@@ -199,22 +195,29 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export function createProject(data: {
+  role?: string
+  repositoryUrl?: string
   title: string
   description: string
   technologies: string[]
   projectUrl?: string
   completionDate: string
   evidence?: File | null
-}): Promise<Project> {
+  skillIds?: number[]
+}, editingId?:number|null): Promise<Project> {
   const body = new FormData()
+  if(editingId) body.append('_method','PUT')
+  body.append('role',data.role??'')
+  body.append('repository_url',data.repositoryUrl??'')
   body.append('title', data.title)
   body.append('description', data.description)
   data.technologies.forEach((technology) => body.append('technologies[]', technology))
-  if (data.projectUrl) body.append('project_url', data.projectUrl)
+  body.append('project_url', data.projectUrl??'')
   body.append('completion_date', data.completionDate)
   if (data.evidence) body.append('evidence', data.evidence)
+  data.skillIds?.forEach((id) => body.append('skill_ids[]', String(id)))
 
-  return apiRequest<Project>('/api/student/projects', { method: 'POST', body })
+  return apiRequest<Project>(`/api/student/projects${editingId?'/'+editingId:''}`, { method: 'POST', body })
 }
 
 export function removeProject(id: number): Promise<{ message: string }> {
@@ -232,17 +235,22 @@ export function createCertification(data: {
   issueDate: string
   expiryDate?: string
   referenceNumber?: string
-  evidence: File
-}): Promise<Certification> {
+  evidence: File | null
+  credentialUrl?: string
+  skillIds?: number[]
+}, editingId?:number|null): Promise<Certification> {
   const body = new FormData()
+  if(editingId)body.append('_method','PUT')
+  body.append('credential_url',data.credentialUrl??'')
   body.append('title', data.title)
   body.append('issuing_organization', data.issuingOrganization)
   body.append('issue_date', data.issueDate)
-  if (data.expiryDate) body.append('expiry_date', data.expiryDate)
-  if (data.referenceNumber) body.append('credential_id', data.referenceNumber)
-  body.append('evidence', data.evidence)
+  body.append('expiry_date', data.expiryDate??'')
+  body.append('credential_id', data.referenceNumber??'')
+  if(data.evidence)body.append('evidence', data.evidence)
+  data.skillIds?.forEach((id) => body.append('skill_ids[]', String(id)))
 
-  return apiRequest<Certification>('/api/student/certifications', { method: 'POST', body })
+  return apiRequest<Certification>(`/api/student/certifications${editingId?'/'+editingId:''}`, { method: 'POST', body })
 }
 
 export function removeCertification(id: number): Promise<{ message: string }> {
@@ -270,7 +278,21 @@ export interface JobPreferenceResponse {
   maximumSalary: number | null
 }
 
+export interface StudentProgressResponse {
+  checklist:Array<{label:string;done:boolean;path:string}>
+  current:Record<string,number|null>;previous:Record<string,number|null>|null;previousVisit:string|null
+  gaps:Array<{skill:string;roles:number}>;comparedRoles:number
+}
+export function visitStudentProgress():Promise<StudentProgressResponse>{return apiRequest('/api/student/progress/visit',{method:'POST'})}
+
 export interface JobRecommendationMatch {
+  feedbackReason?: string | null
+  feedback?: 'relevant' | 'not_relevant' | null
+  scoreBreakdown: {
+    assessable: boolean; matchedCount: number; requirementCount: number; skillCoverage: number; preferenceFactor: number
+    preferences: Array<{label:string; matched:boolean; weight:number}>
+    salaryCompared: boolean; formula: string; basis: string; limits: string
+  }
   id: number
   rank: number
   matchScore: number
@@ -290,31 +312,59 @@ export interface JobRecommendationMatch {
     source: string
     applicationUrl: string
     publishedAt: string | null
+    fetchedAt: string | null
+    descriptionScope?: string
   }
 }
 
 export interface JobRecommendationResponse {
+  catalogue?: { total:number; sources:Array<{source:string;count:number}>; lastUpdatedAt:string|null }
+  aiInsights?: { picks: Array<{jobId:number;title:string;note:string}>; reviewedAt: string } | null
   runId: number | null
   generatedAt?: string
+  modelName?: string | null
   matches: JobRecommendationMatch[]
 }
 
 export interface CvContent {
-  personal: { name: string; email: string; phone: string; location: string; headline: string }
+  personal: { name: string; email: string; phone: string; location: string; headline: string; website?: string }
   summary: string
   skills: string[]
-  education: Array<{ institution: string; qualification: string; period: string }>
+  education: Array<{ institution: string; qualification: string; period: string; details?: string }>
   projects: Array<{ title: string; description: string; technologies: string[] }>
   certifications: Array<{ title: string; issuer: string; issueDate: string }>
   assessments: Array<{ title: string; percentage: number; completedAt: string }>
+  experience: Array<{ role: string; company: string; period: string; description: string }>
+  additional: string
+}
+
+export interface CvAnalysis {
+  checks: Array<{ key: string; label: string; passed: boolean; tip: string }>
+  passedChecks: number
+  verifiedSkills: string[]
+  unverifiedSkills: string[]
+  jobCoverage: { mentioned: string[]; missing: string[]; total: number }
+  strengths: string[]
+  suggestions: string[]
+  rewrites: Array<{ field: string; original: string; suggested: string; reason: string }>
+  engine: string
+  reviewedAt: string
 }
 
 export interface GeneratedCvResponse {
+  extractionMethod?: string | null
   id: number
   title: string
   content: CvContent
   version: number
   status: string
+  modelName?: string | null
+  sourceType: 'profile' | 'upload' | 'paste'
+  sourceFilename?: string | null
+  sourceText?: string | null
+  hasSourceFile: boolean
+  analysis: CvAnalysis | null
+  targetJob?: { id: number; title: string; company: string } | null
   createdAt: string
   updatedAt: string
 }
@@ -354,6 +404,7 @@ export function createAssessment(data: {
   description: string
   timeLimit: number
   passingScore: number
+  skillNames?:string[]
 }): Promise<Assessment> {
   return apiRequest<Assessment>('/api/admin/assessments', {
     method: 'POST',
@@ -363,6 +414,7 @@ export function createAssessment(data: {
       description: data.description,
       time_limit: data.timeLimit,
       passing_score: data.passingScore,
+      skill_names:data.skillNames??[],
     }),
   })
 }
@@ -377,6 +429,7 @@ export function updateAssessment(id: number, data: {
   description: string
   timeLimit: number
   passingScore: number
+  skillNames?:string[]
 }): Promise<Assessment> {
   return apiRequest<Assessment>(`/api/admin/assessments/${id}`, {
     method: 'PUT',
@@ -386,6 +439,7 @@ export function updateAssessment(id: number, data: {
       description: data.description,
       time_limit: data.timeLimit,
       passing_score: data.passingScore,
+      skill_names:data.skillNames??[],
     }),
   })
 }
@@ -438,20 +492,17 @@ export async function getAdminReviews(): Promise<ReviewItem[]> {
   return response.data
 }
 
-export function getAdminReviewsFiltered(params: { status?: 'pending' | 'verified' | 'rejected' | 'all'; type?: 'project' | 'certification' | 'skill' | 'all'; search?: string }): Promise<ReviewItem[]> {
+export function getAdminReviewsFiltered(params: { status?: 'pending' | 'verified' | 'rejected' | 'all'; type?: 'project' | 'certification' | 'skill' | 'all'; search?: string; ageDays?: number }): Promise<ReviewItem[]> {
   const query = new URLSearchParams()
   if (params.status) query.set('status', params.status)
+  if (params.ageDays) query.set('age_days',String(params.ageDays))
   if (params.type) query.set('type', params.type)
   if (params.search) query.set('search', params.search)
   return apiRequest<{ data: ReviewItem[] }>(`/api/admin/reviews?${query.toString()}`).then((response) => response.data)
 }
 
 export async function downloadAdminEvidence(item: Pick<ReviewItem, 'type' | 'id'>, file: { id: number; name: string }): Promise<void> {
-  const saved = localStorage.getItem('dp_auth')
-  const token = saved ? (JSON.parse(saved) as { token?: string }).token : null
-  const response = await fetch(`/api/admin/reviews/${item.type}/${item.id}/evidence/${file.id}`, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  })
+  const response = await authenticatedFetch(`/api/admin/reviews/${item.type}/${item.id}/evidence/${file.id}`)
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorResponse
@@ -465,6 +516,12 @@ export async function downloadAdminEvidence(item: Pick<ReviewItem, 'type' | 'id'
   anchor.download = file.name
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+export async function getEvidenceBlob(id:number):Promise<Blob> {
+  const response=await authenticatedFetch(`/api/evidence/${id}`)
+  if(!response.ok)throw new ApiError('This file could not be opened. It may have been removed; ask the owner to upload it again.',response.status)
+  return response.blob()
 }
 
 export function getAdminUsers(params: { search?: string; status?: 'active' | 'inactive'; programme?: string } = {}): Promise<{ data: AdminUserSummary[]; meta: { total: number; programmes: string[] } }> {
@@ -519,8 +576,12 @@ export function getLatestJobRecommendations(): Promise<JobRecommendationResponse
   return apiRequest<JobRecommendationResponse>('/api/student/job-recommendations')
 }
 
-export function generateJobRecommendations(): Promise<JobRecommendationResponse> {
-  return apiRequest<JobRecommendationResponse>('/api/student/job-recommendations', { method: 'POST' })
+export function generateJobRecommendations(query?:string): Promise<JobRecommendationResponse> {
+  return apiRequest<JobRecommendationResponse>('/api/student/job-recommendations', { method: 'POST', body:JSON.stringify({query}) })
+}
+
+export function saveJobFeedback(id:number, rating:'relevant'|'not_relevant', reason?:string):Promise<{message:string}> {
+  return apiRequest(`/api/student/jobs/${id}/feedback`, {method:'PUT',body:JSON.stringify({rating,reason})})
 }
 
 export async function getGeneratedCvs(): Promise<GeneratedCvResponse[]> {
@@ -528,8 +589,11 @@ export async function getGeneratedCvs(): Promise<GeneratedCvResponse[]> {
   return response.data
 }
 
-export function generateCv(): Promise<GeneratedCvResponse> {
-  return apiRequest<GeneratedCvResponse>('/api/student/cvs', { method: 'POST' })
+export function generateCv(targetJobId?: number, title?: string): Promise<GeneratedCvResponse> {
+  return apiRequest<GeneratedCvResponse>('/api/student/cvs', {
+    method: 'POST',
+    body: JSON.stringify({ target_job_listing_id: targetJobId, title }),
+  })
 }
 
 export function updateCv(cv: Pick<GeneratedCvResponse, 'id' | 'title' | 'content'>): Promise<GeneratedCvResponse> {
@@ -539,12 +603,12 @@ export function updateCv(cv: Pick<GeneratedCvResponse, 'id' | 'title' | 'content
   })
 }
 
+export function renameCv(id: number, title: string): Promise<GeneratedCvResponse> {
+  return apiRequest(`/api/student/cvs/${id}/name`, { method: 'PATCH', body: JSON.stringify({ title }) })
+}
+
 export async function downloadCv(cv: GeneratedCvResponse, format: 'pdf' | 'word'): Promise<void> {
-  const saved = localStorage.getItem('dp_auth')
-  const token = saved ? (JSON.parse(saved) as { token?: string }).token : null
-  const response = await fetch(`/api/student/cvs/${cv.id}/export/${format}`, {
-    headers: { Accept: 'application/octet-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  })
+  const response = await authenticatedFetch(`/api/student/cvs/${cv.id}/export/${format}`)
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorResponse
@@ -559,3 +623,68 @@ export async function downloadCv(cv: GeneratedCvResponse, format: 'pdf' | 'word'
   anchor.click()
   URL.revokeObjectURL(url)
 }
+
+export function uploadCv(file: File | null, text: string, title?: string): Promise<GeneratedCvResponse> {
+  const body = new FormData()
+  if (title) body.append('title', title)
+  if (file) body.append('file', file)
+  else body.append('text', text)
+  return apiRequest('/api/student/cvs/upload', { method: 'POST', body })
+}
+export function structureCv(id: number, sourceText: string): Promise<GeneratedCvResponse> {
+  return apiRequest(`/api/student/cvs/${id}/structure`, { method: 'POST', body: JSON.stringify({ source_text: sourceText }) })
+}
+export function reviewCv(id: number): Promise<GeneratedCvResponse> {
+  return apiRequest(`/api/student/cvs/${id}/review`, { method: 'POST' })
+}
+export function duplicateCv(id: number, targetJobId?: number): Promise<GeneratedCvResponse> {
+  return apiRequest(`/api/student/cvs/${id}/duplicate`, { method: 'POST', body: JSON.stringify({ target_job_listing_id: targetJobId ?? null }) })
+}
+export function removeCv(id: number): Promise<{ message: string }> {
+  return apiRequest(`/api/student/cvs/${id}`, { method: 'DELETE' })
+}
+export async function downloadCvSource(cv: GeneratedCvResponse): Promise<void> {
+  const response = await authenticatedFetch(`/api/student/cvs/${cv.id}/source`)
+  if (!response.ok) throw new ApiError('The source file could not be downloaded.', response.status)
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = cv.sourceFilename || 'original-cv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export interface AssistantMessage {
+  role: 'user' | 'assistant'
+  content: string
+  engine?: string
+  sources?: Array<{ label: string; detail: string }>
+  actions?: Array<{ label: string; path: string }>
+  createdAt: string
+}
+export interface AssistantSession {
+  id: number
+  language: 'en' | 'ms' | null
+  title: string
+  mode: 'coach' | 'interview'
+  cvId: number | null
+  messages: AssistantMessage[]
+  updatedAt: string
+}
+export async function getAssistantSessions(): Promise<AssistantSession[]> {
+  return (await apiRequest<{ data: AssistantSession[] }>('/api/assistant/sessions')).data
+}
+export function createAssistantSession(mode: 'coach' | 'interview', cvId?: number, language?: 'en' | 'ms'): Promise<AssistantSession> {
+  return apiRequest('/api/assistant/sessions', { method: 'POST', body: JSON.stringify({ mode, cv_id: cvId ?? null, language }) })
+}
+export function getAssistantSession(id: number): Promise<AssistantSession> {
+  return apiRequest(`/api/assistant/sessions/${id}`)
+}
+export function sendAssistantMessage(id: number, message: string, cvId?: number): Promise<AssistantSession> {
+  return apiRequest(`/api/assistant/sessions/${id}/messages`, { method: 'POST', body: JSON.stringify({ message, ...(cvId ? {cv_id:cvId} : {}) }) })
+}
+export function deleteAssistantSession(id: number): Promise<{ message: string }> {
+  return apiRequest(`/api/assistant/sessions/${id}`, { method: 'DELETE' })
+}
+
+export function createAssessmentVersion(id:number):Promise<Assessment>{return apiRequest(`/api/admin/assessments/${id}/versions`,{method:'POST'})}

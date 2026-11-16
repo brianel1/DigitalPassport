@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, reactive } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft, CheckCircle2, Clock3, Trophy } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
@@ -7,18 +7,25 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import type { Assessment, AssessmentAttempt } from '@/types'
+import { useFormDraft } from '@/composables/useFormDraft'
+import { useConfirm } from '@/composables/useConfirm'
 import { ApiError, startAssessment, submitAssessment } from '@/lib/api'
 
 const route = useRoute()
 const assessmentId = Number(route.params.id)
 const assessment = ref<Assessment | null>(null)
 const attemptId = ref<number | null>(null)
-const currentIndex = ref(0)
-const answers = ref<Record<number, number>>({})
+const attemptDraft=reactive({attemptId:0,currentIndex:0,answers:{} as Record<number,number>})
+const draftStore=useFormDraft('assessment-'+assessmentId,attemptDraft)
+const {confirmAction,pending,finish}=useConfirm()
+const currentIndex=computed({get:()=>attemptDraft.currentIndex,set:(value:number)=>{attemptDraft.currentIndex=value}})
+const answers=computed(()=>attemptDraft.answers)
+async function requestSubmit(){if(await confirmAction({title:'Submit your assessment?',description:'Your answers will be marked and this attempt will close. You cannot edit submitted answers.',confirmLabel:'Submit assessment'}))await submit()}
 const result = ref<AssessmentAttempt | null>(null)
 const loading = ref(true)
 const submitting = ref(false)
 const error = ref('')
+const notice = ref('')
 const secondsRemaining = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -36,9 +43,15 @@ onMounted(async () => {
     const response = await startAssessment(assessmentId)
     assessment.value = response.assessment
     attemptId.value = response.attemptId
+    if(attemptDraft.attemptId!==response.attemptId) {
+      if(attemptDraft.attemptId)notice.value='Your previous attempt has ended. A new attempt has started; previous answers were not carried over.'
+      Object.assign(attemptDraft,{attemptId:response.attemptId,currentIndex:0,answers:{}})
+    }
+    currentIndex.value=Math.min(currentIndex.value,Math.max(0,questions.value.length-1))
+    const expires= new Date(response.expiresAt).getTime()
     secondsRemaining.value = Math.max(0, Math.floor((new Date(response.expiresAt).getTime() - Date.now()) / 1000))
     timer = setInterval(() => {
-      secondsRemaining.value = Math.max(0, secondsRemaining.value - 1)
+      secondsRemaining.value = Math.max(0, Math.floor((expires-Date.now())/1000))
       if (secondsRemaining.value === 0) {
         clearInterval(timer)
         void submit()
@@ -54,12 +67,14 @@ onMounted(async () => {
 onBeforeUnmount(() => clearInterval(timer))
 
 async function submit() {
-  if (!attemptId.value || submitting.value) return
+  if (!attemptId.value || submitting.value || result.value) return
   submitting.value = true
   error.value = ''
   try {
     result.value = await submitAssessment(attemptId.value, answers.value)
+    if(pending.value?.title==='Submit your assessment?')finish(false)
     clearInterval(timer)
+    draftStore.clear()
   } catch (cause) {
     error.value = cause instanceof ApiError ? cause.message : 'The assessment could not be submitted.'
   } finally {
@@ -72,14 +87,16 @@ async function submit() {
   <div class="mx-auto max-w-3xl space-y-6">
     <RouterLink to="/student/assessments" class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft class="size-4" /> Back to assessments</RouterLink>
 
-    <p v-if="error" class="rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">{{ error }}</p>
+    <h1 class="page-heading">{{ assessment?.title ?? 'Skill assessment' }}</h1>
+    <p v-if="notice" role="status" class="rounded-xl bg-warning-soft p-4 text-sm text-warning">{{ notice }}</p>
+    <p v-if="error" role="alert" class="rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">{{ error }}</p>
     <Card v-if="loading"><CardContent class="p-8 text-center text-muted-foreground">Starting assessment...</CardContent></Card>
 
     <Card v-else-if="assessment && !result">
       <CardHeader>
         <div class="flex flex-wrap items-center justify-between gap-3"><Badge variant="secondary">Question {{ currentIndex + 1 }} of {{ questions.length }}</Badge><span class="flex items-center gap-2 text-sm font-medium" :class="secondsRemaining < 60 ? 'text-destructive' : 'text-muted-foreground'"><Clock3 class="size-4" /> {{ formattedTime }}</span></div>
-        <CardTitle class="pt-3">{{ assessment.title }}</CardTitle>
-        <Progress :model-value="progress" class="mt-3" />
+
+        <Progress :model-value="progress" class="mt-3" /><p class="text-xs leading-6 text-muted-foreground">Answers are kept in this browser tab if you leave and return. The timer keeps running.</p>
       </CardHeader>
       <CardContent v-if="currentQuestion">
         <h2 class="text-lg font-medium leading-relaxed">{{ currentQuestion.question }}</h2>
@@ -92,7 +109,7 @@ async function submit() {
         <div class="mt-7 flex justify-between">
           <Button variant="outline" :disabled="currentIndex === 0 || submitting" @click="currentIndex--">Previous</Button>
           <Button v-if="currentIndex < questions.length - 1" :disabled="answers[currentQuestion.id] === undefined || submitting" @click="currentIndex++">Next question</Button>
-          <Button v-else :disabled="Object.keys(answers).length !== questions.length || submitting" @click="submit">{{ submitting ? 'Submitting...' : 'Submit assessment' }}</Button>
+          <Button v-else :disabled="Object.keys(answers).length !== questions.length || submitting" @click="requestSubmit">{{ submitting ? 'Submitting...' : 'Submit assessment' }}</Button>
         </div>
       </CardContent>
     </Card>
@@ -104,7 +121,7 @@ async function submit() {
         <CardTitle class="pt-4 text-3xl">{{ result.percentage }}%</CardTitle>
         <CardDescription>{{ result.passed ? 'Assessment passed successfully' : 'Review the topic and try again' }}</CardDescription>
       </CardHeader>
-      <CardContent class="pb-10"><p class="mb-6 text-sm text-muted-foreground">You earned {{ result.score }} points across {{ result.totalQuestions }} questions.</p><Button as-child><RouterLink to="/student/assessments">Return to assessments</RouterLink></Button></CardContent>
+      <CardContent class="pb-10"><p v-if="result.feedback" class="mb-4 text-sm">{{result.feedback}}</p><p class="mb-6 text-sm text-muted-foreground">You earned {{ result.score }} points across {{ result.totalQuestions }} questions.</p><Button as-child><RouterLink to="/student/assessments">Return to assessments</RouterLink></Button></CardContent>
     </Card>
 
     <Card v-else-if="!error"><CardContent class="p-8 text-center"><p>Assessment could not be found.</p></CardContent></Card>

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\GeneratedCv;
+use App\Models\JobListing;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 class CvGeneratorService
 {
@@ -11,21 +13,31 @@ class CvGeneratorService
     {
     }
 
-    public function generate(User $user): GeneratedCv
+    public function generate(User $user, ?JobListing $targetJob = null, ?string $title = null): GeneratedCv
     {
         $user->load(['profile', 'skills', 'projects', 'certifications', 'assessmentAttempts.assessment']);
         $skills = $user->skills->where('status', 'verified')->pluck('name')->values()->all();
+        $wanted = collect($targetJob?->required_skills ?? [])->map(fn ($skill) => Str::lower($skill));
+        if ($targetJob) {
+            usort($skills, fn ($a, $b) => (int) $wanted->contains(Str::lower($b)) <=> (int) $wanted->contains(Str::lower($a)));
+        }
         $projects = $user->projects->where('status', 'verified')->map(fn ($project) => [
             'title' => $project->title,
             'description' => $project->description,
             'technologies' => $project->technologies ?? [],
         ])->values()->all();
-        $certifications = $user->certifications->where('status', 'verified')->map(fn ($certification) => [
+        if ($targetJob) {
+            usort($projects, function ($a, $b) use ($wanted) {
+                $relevance = fn ($project) => collect($project['technologies'])->filter(fn ($tech) => $wanted->contains(Str::lower($tech)))->count();
+                return $relevance($b) <=> $relevance($a);
+            });
+        }
+        $certifications = $user->certifications->where('status', 'verified')->filter(fn ($c) => !$c->expiry_date || !$c->expiry_date->lt(today()))->map(fn ($certification) => [
             'title' => $certification->title,
             'issuer' => $certification->issuing_organization,
             'issueDate' => $certification->issue_date->toDateString(),
         ])->values()->all();
-        $assessments = $user->assessmentAttempts->where('passed', true)->map(fn ($attempt) => [
+        $assessments = app(AssessmentEvidence::class)->best($user)->map(fn ($attempt) => [
             'title' => $attempt->assessment?->title ?? 'Assessment',
             'percentage' => (float) $attempt->percentage,
             'completedAt' => $attempt->submitted_at?->toDateString() ?? '',
@@ -39,15 +51,15 @@ class CvGeneratorService
                 : "{$user->programme} student building a verified record of technical skills and project experience.";
         }
 
-        $version = ((int) $user->generatedCvs()->max('version')) + 1;
 
         $content = [
             'personal' => [
                 'name' => $user->name,
                 'email' => $user->email,
-                'phone' => $user->profile?->phone ?? '',
+                'phone' => \App\Support\PhoneNumber::display($user->profile?->phone),
                 'location' => $user->profile?->location ?? '',
                 'headline' => $user->profile?->headline ?? "{$user->programme} Student",
+                'website' => $user->profile?->linkedin_url ?? $user->profile?->github_url ?? '',
             ],
             'summary' => $summary,
             'skills' => $skills,
@@ -61,53 +73,31 @@ class CvGeneratorService
             'projects' => $projects,
             'certifications' => $certifications,
             'assessments' => $assessments,
+            'experience' => [],
+            'additional' => '',
         ];
-        [$content, $modelName] = $this->enhanceWithAi($user, $content);
-
-        return $user->generatedCvs()->create([
-            'title' => "{$user->name} CV",
-            'content' => $content,
-            'version' => $version,
-            'status' => 'draft',
-            'model_name' => $modelName,
-        ]);
-    }
-
-    /** @param array<string, mixed> $content @return array{0: array<string, mixed>, 1: string} */
-    private function enhanceWithAi(User $user, array $content): array
-    {
-        if (! $this->ollama->isConfigured()) {
-            return [$content, 'trusted-profile-template-v1'];
-        }
-
-        $prompt = 'Prepare concise ATS CV wording from the supplied verified student profile. Use only the supplied facts and do not invent employers, dates, qualifications, metrics, or technologies. Return JSON only with this shape: {"summary":"...","project_descriptions":["..."]}. Keep the summary under 500 characters. Keep one project description for each supplied project and keep each under 500 characters.'.
-            "\n\nVerified profile:\n".json_encode([
-                'programme' => $user->programme,
-                'skills' => $content['skills'],
-                'projects' => $content['projects'],
-                'certifications' => $content['certifications'],
-                'assessments' => $content['assessments'],
-                'current_summary' => $content['summary'],
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-        $response = $this->ollama->generateJson($prompt);
-        $summary = data_get($response, 'summary');
-        $descriptions = data_get($response, 'project_descriptions');
-
-        if (is_string($summary) && trim($summary) !== '') {
-            $content['summary'] = trim($summary);
-        }
-
-        if (is_array($descriptions) && count($descriptions) === count($content['projects'])) {
-            foreach ($content['projects'] as $index => $project) {
-                if (is_string($descriptions[$index] ?? null) && trim($descriptions[$index]) !== '') {
-                    $content['projects'][$index]['description'] = trim($descriptions[$index]);
-                }
-            }
-        }
-
-        $modelName = ($response !== null) ? 'ollama:'.$this->ollama->modelName() : 'trusted-profile-template-v1';
-
-        return [$content, $modelName];
+        // AI returns optional suggestions. The original facts remain the editable draft
+        // until the student explicitly applies a reviewed suggestion.
+        $draft = new GeneratedCv(['content' => $content]);
+        $draft->setRelation('user', $user)->setRelation('targetJob', $targetJob);
+        $analysis = app(CvIntelligenceService::class)->review($draft);
+        $modelName = $analysis['engine'];
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $content, $targetJob, $title, $analysis, $modelName) {
+            $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
+            return $user->generatedCvs()->create([
+                'title' => $title ?: Str::limit($targetJob ? "{$user->name} - {$targetJob->title}" : "{$user->name} CV", 160, ''),
+                'target_job_listing_id' => $targetJob?->id, 'content' => $content,
+                'version' => ((int) $user->generatedCvs()->max('version')) + 1, 'status' => 'draft',
+                'model_name' => $modelName, 'analysis' => $analysis,
+                'provenance' => [
+                    'method' => 'verified-records-and-opt-in-review-v2', 'model' => $modelName,
+                    'generated_at' => now()->toISOString(), 'source_content' => $content,
+                    'skill_ids' => $user->skills->where('status', 'verified')->pluck('id')->all(),
+                    'project_ids' => $user->projects->where('status', 'verified')->pluck('id')->all(),
+                    'certificate_ids' => $user->certifications->where('status', 'verified')->filter(fn ($c) => !$c->expiry_date || !$c->expiry_date->lt(today()))->pluck('id')->all(),
+                    'assessment_attempt_ids' => app(AssessmentEvidence::class)->best($user)->pluck('id')->all(),
+                ],
+            ]);
+        });
     }
 }

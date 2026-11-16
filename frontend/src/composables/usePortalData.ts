@@ -26,7 +26,9 @@ const projects: Ref<Project[]> = ref([])
 const certifications: Ref<Certification[]> = ref([])
 const attempts: Ref<AssessmentAttempt[]> = ref([])
 const activity: Ref<ActivityItem[]> = ref([])
+const studentError = ref('')
 const reviewItems: Ref<ReviewItem[]> = ref([])
+const adminError = ref('')
 const emptyAdminStats: AdminDashboardStats = {
   pendingReviews: 0,
   totalStudents: 0,
@@ -55,6 +57,7 @@ export function usePortalData() {
   async function loadStudentData() {
     if (studentLoaded) return
     studentLoaded = true
+    studentError.value = ''
     try {
       const [skillsData, projectsData, certsData, assessmentData] = await Promise.all([
         getSkills(),
@@ -67,14 +70,16 @@ export function usePortalData() {
       certifications.value = certsData
       attempts.value = assessmentData.attempts
       activity.value = buildActivityFeed(skillsData, projectsData, certsData, assessmentData.attempts)
-    } catch {
+    } catch (cause) {
       studentLoaded = false
+      studentError.value = cause instanceof Error ? cause.message : 'Student data could not be loaded.'
     }
   }
 
   async function loadAdminData() {
     if (adminLoaded) return
     adminLoaded = true
+    adminError.value = ''
     try {
       const [reviewData, statsData] = await Promise.all([
         getAdminReviews(),
@@ -82,8 +87,9 @@ export function usePortalData() {
       ])
       reviewItems.value = reviewData
       adminStats.value = statsData
-    } catch {
+    } catch (cause) {
       adminLoaded = false
+      adminError.value = cause instanceof Error ? cause.message : 'Admin data could not be loaded.'
     }
   }
 
@@ -103,8 +109,10 @@ export function usePortalData() {
     certifications,
     attempts,
     activity,
+    studentError,
     reviewItems,
     adminStats,
+    adminError,
     loadStudentData,
     loadAdminData,
     refreshStudentData,

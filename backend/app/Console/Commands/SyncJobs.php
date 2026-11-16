@@ -7,15 +7,15 @@ use Illuminate\Console\Command;
 
 class SyncJobs extends Command
 {
-    protected $signature = 'jobs:sync {--keywords=software developer} {--location=Malaysia}';
+    protected $signature = 'jobs:sync {--keywords= : Comma-separated searches; defaults to several career fields} {--location=Malaysia} {--source= : Refresh one source only}';
 
     protected $description = 'Fetch and cache listings from configured job providers';
 
     public function handle(JobSyncService $service): int
     {
-        $results = $service->sync($this->option('keywords'), $this->option('location'));
+        $results = $service->sync((string)$this->option('keywords'), $this->option('location'), $this->option('source'));
         foreach ($results as $provider => $result) {
-            $message = $result['error'] ?? "{$result['saved']} listing(s) saved.";
+            $message = "{$result['saved']} listing(s) saved. ".($result['error'] ?? '');
             $result['error'] ? $this->warn("{$provider}: {$message}") : $this->info("{$provider}: {$message}");
         }
 

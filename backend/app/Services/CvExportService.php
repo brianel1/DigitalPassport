@@ -22,6 +22,7 @@ class CvExportService
     public function word(GeneratedCv $cv): string
     {
         $content = $cv->content;
+        \PhpOffice\PhpWord\Settings::setOutputEscapingEnabled(true);
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
         $phpWord->setDefaultFontSize(9);
@@ -37,22 +38,25 @@ class CvExportService
         if (! empty($personal['headline'])) {
             $section->addText($personal['headline'], ['bold' => true, 'size' => 10, 'color' => '374151'], ['spaceAfter' => 30]);
         }
-        $contact = collect([$personal['email'], $personal['phone'], $personal['location']])->filter()->join(' | ');
+        $contact = collect([$personal['email'], $personal['phone'], $personal['location'], $personal['website'] ?? ''])->filter()->join(' | ');
         $section->addText($contact, ['size' => 8, 'color' => '374151'], ['spaceAfter' => 80, 'borderBottomSize' => 8, 'borderBottomColor' => '111827']);
 
         $section->addText('', [], ['spaceAfter' => 30]);
-        $columns = $section->addTable([
-            'borderSize' => 0,
-            'cellMargin' => 0,
-            'cellSpacing' => 0,
-        ]);
-        $columns->addRow();
-        $left = $columns->addCell(Converter::inchToTwip(4.4), ['valign' => 'top', 'borderSize' => 0, 'cellMarginRight' => 120]);
-        $right = $columns->addCell(Converter::inchToTwip(2.25), ['valign' => 'top', 'borderSize' => 0, 'borderLeftSize' => 6, 'borderLeftColor' => 'D1D5DB', 'cellMarginLeft' => 180]);
+        $left = $section;
+        $right = $section;
 
         if (! empty($content['summary'])) {
             $this->heading($left, 'SUMMARY');
             $left->addText($content['summary'], [], ['spaceAfter' => 100]);
+        }
+
+        if (! empty($content['experience'])) {
+            $this->heading($left, 'WORK EXPERIENCE');
+            foreach ($content['experience'] as $entry) {
+                $left->addText($entry['role'], ['bold' => true], ['spaceBefore' => 55, 'spaceAfter' => 20]);
+                $left->addText(collect([$entry['company'], $entry['period']])->filter()->join(' | '), ['size' => 8, 'color' => '4B5563']);
+                $left->addText($entry['description'], [], ['spaceAfter' => 80]);
+            }
         }
 
         if (! empty($content['projects'])) {
@@ -78,6 +82,7 @@ class CvExportService
             foreach ($content['education'] as $education) {
                 $right->addText($education['qualification'], ['bold' => true, 'size' => 9], ['spaceAfter' => 20]);
                 $right->addText(collect([$education['institution'], $education['period']])->filter()->join(' | '), ['size' => 8, 'color' => '4B5563'], ['spaceAfter' => 80]);
+                if (!empty($education['details'])) $right->addText($education['details'], ['size'=>8], ['spaceAfter'=>80]);
             }
         }
 
@@ -95,6 +100,10 @@ class CvExportService
             }
         }
 
+        if (! empty($content['additional'])) {
+            $this->heading($right, 'ADDITIONAL INFORMATION');
+            $right->addText($content['additional'], [], ['spaceAfter' => 80]);
+        }
         $path = $this->path($cv, 'docx');
         $absolutePath = Storage::disk('local')->path($path);
         if (! is_dir(dirname($absolutePath))) {

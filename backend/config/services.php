@@ -44,10 +44,20 @@ return [
         'url' => env('REMOTIVE_API_URL', 'https://remotive.com/api/remote-jobs'),
     ],
 
+    'public_jobs' => [
+        'sources' => ['hiredly', 'jobstore', 'ricebowl', 'maukerja', 'jobstreet'],
+        'queries' => ['software', 'data', 'internship', 'engineering', 'accounting', 'marketing'],
+        'pages' => (int) env('PUBLIC_JOBS_PAGES', 3),
+        'detail_limit' => (int) env('PUBLIC_JOBS_DETAIL_LIMIT', 24),
+    ],
+
     'ollama' => [
         'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
         'model' => env('OLLAMA_MODEL'),
+        'chat_model' => env('OLLAMA_CHAT_MODEL'),
         'timeout' => env('OLLAMA_TIMEOUT', 90),
     ],
+
+    'ocr' => ['python' => env('OCR_PYTHON')],
 
 ];

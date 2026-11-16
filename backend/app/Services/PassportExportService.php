@@ -13,19 +13,14 @@ class PassportExportService
     public function pdf(User $user): string
     {
         $user->load(['profile', 'skills', 'projects', 'certifications']);
-        $attempts = AssessmentAttempt::query()
-            ->with('assessment')
-            ->where('user_id', $user->id)
-            ->where('passed', true)
-            ->latest('submitted_at')
-            ->get();
+        $attempts = app(AssessmentEvidence::class)->best($user);
 
         $path = 'passport_exports/'.$user->id.'/'.Str::slug($user->name).'-'.Str::random(8).'.pdf';
         $pdf = Pdf::loadView('passport.digital', [
             'user' => $user,
             'skills' => $user->skills->where('status', 'verified'),
             'projects' => $user->projects->where('status', 'verified'),
-            'certifications' => $user->certifications->where('status', 'verified'),
+            'certifications' => $user->certifications->where('status', 'verified')->filter(fn ($c) => !$c->expiry_date || !$c->expiry_date->lt(today())),
             'attempts' => $attempts,
         ])->setPaper('a4');
 

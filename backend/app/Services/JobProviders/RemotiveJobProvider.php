@@ -29,7 +29,7 @@ class RemotiveJobProvider implements JobProvider
             ->throw()
             ->json('jobs', []);
 
-        return collect($jobs)->take(50)->map(function (array $job) {
+        return collect($jobs)->take(300)->map(function (array $job) {
             $description = trim(preg_replace('/\s+/', ' ', strip_tags($job['description'] ?? '')));
 
             return [

@@ -10,7 +10,7 @@ class AssessmentAttempt extends Model
 {
     protected $fillable = [
         'assessment_id', 'user_id', 'score', 'maximum_score', 'percentage',
-        'passed', 'started_at', 'submitted_at',
+        'passed', 'started_at', 'submitted_at', 'assessment_snapshot',
     ];
 
     protected function casts(): array
@@ -20,6 +20,7 @@ class AssessmentAttempt extends Model
             'passed' => 'boolean',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'assessment_snapshot' => 'array',
         ];
     }
 

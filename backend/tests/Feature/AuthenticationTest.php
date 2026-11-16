@@ -77,4 +77,14 @@ class AuthenticationTest extends TestCase
             'password' => 'wrong-password',
         ])->assertUnprocessable();
     }
+
+    public function test_a_previous_browser_token_expires_after_two_hours(): void
+    {
+        $user=User::factory()->create();
+        $token=$user->createToken('web-app')->plainTextToken;
+        $this->withToken($token)->getJson('/api/user')->assertOk();
+        $this->travel(121)->minutes();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/user')->assertUnauthorized();
+    }
 }

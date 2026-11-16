@@ -6,6 +6,7 @@ use App\Models\Assessment;
 use App\Models\AssessmentQuestion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AdminAssessmentController extends Controller
@@ -24,6 +25,8 @@ class AdminAssessmentController extends Controller
     {
         $this->ensureAdmin($request);
         $validated = $request->validate([
+            'skill_names' => ['sometimes', 'array', 'max:20'],
+            'skill_names.*' => ['string', 'max:100', 'distinct'],
             'title' => ['required', 'string', 'max:255'],
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'description' => ['required', 'string', 'max:4000'],
@@ -33,6 +36,7 @@ class AdminAssessmentController extends Controller
 
         $assessment = Assessment::create([
             'created_by' => $request->user()->id,
+            'skill_names' => $validated['skill_names'] ?? [],
             'title' => $validated['title'],
             'category' => $validated['category'],
             'description' => $validated['description'],
@@ -47,6 +51,7 @@ class AdminAssessmentController extends Controller
     public function destroy(Request $request, Assessment $assessment): JsonResponse
     {
         $this->ensureAdmin($request);
+        $this->ensureEditable($assessment);
         $assessment->delete();
 
         return response()->json(['message' => 'Assessment deleted successfully.']);
@@ -55,7 +60,10 @@ class AdminAssessmentController extends Controller
     public function update(Request $request, Assessment $assessment): JsonResponse
     {
         $this->ensureAdmin($request);
+        $this->ensureEditable($assessment);
         $validated = $request->validate([
+            'skill_names' => ['sometimes', 'array', 'max:20'],
+            'skill_names.*' => ['string', 'max:100', 'distinct'],
             'title' => ['required', 'string', 'max:255'],
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'description' => ['required', 'string', 'max:4000'],
@@ -64,6 +72,7 @@ class AdminAssessmentController extends Controller
         ]);
 
         $assessment->update([
+            'skill_names' => $validated['skill_names'] ?? [],
             'title' => $validated['title'],
             'category' => $validated['category'],
             'description' => $validated['description'],
@@ -85,7 +94,13 @@ class AdminAssessmentController extends Controller
             return response()->json(['message' => 'Cannot publish an assessment with no questions.'], 422);
         }
 
-        $assessment->update(['is_published' => !$assessment->is_published]);
+        DB::transaction(function () use ($assessment) {
+            if (!$assessment->is_published) {
+                $root = $assessment->parent_assessment_id ?? $assessment->id;
+                Assessment::where(fn ($q) => $q->whereKey($root)->orWhere('parent_assessment_id', $root))->where('id', '!=', $assessment->id)->update(['is_published' => false]);
+            }
+            $assessment->update(['is_published' => !$assessment->is_published]);
+        });
 
         return response()->json([
             'message' => $assessment->is_published ? 'Assessment published.' : 'Assessment unpublished.',
@@ -120,6 +135,7 @@ class AdminAssessmentController extends Controller
     public function storeQuestion(Request $request, Assessment $assessment): JsonResponse
     {
         $this->ensureAdmin($request);
+        $this->ensureEditable($assessment);
         $validated = $request->validate([
             'question' => ['required', 'string', 'max:1000'],
             'options' => ['required', 'array', 'min:2', 'max:6'],
@@ -160,6 +176,7 @@ class AdminAssessmentController extends Controller
     public function updateQuestion(Request $request, Assessment $assessment, AssessmentQuestion $question): JsonResponse
     {
         $this->ensureAdmin($request);
+        $this->ensureEditable($assessment);
         abort_unless($question->assessment_id === $assessment->id, 404);
 
         $validated = $request->validate([
@@ -199,6 +216,7 @@ class AdminAssessmentController extends Controller
     public function destroyQuestion(Request $request, Assessment $assessment, AssessmentQuestion $question): JsonResponse
     {
         $this->ensureAdmin($request);
+        $this->ensureEditable($assessment);
         abort_unless($question->assessment_id === $assessment->id, 404);
         $question->delete();
 
@@ -210,11 +228,37 @@ class AdminAssessmentController extends Controller
         abort_unless($request->user()->role === 'admin', 403, 'Administrator access is required.');
     }
 
+    private function ensureEditable(Assessment $assessment): void
+    {
+        abort_if($assessment->attempts()->exists(), 409, 'Students have started this version. Create a new version to change its questions or scoring. You can unpublish this version to close new attempts.');
+    }
+
+    public function newVersion(Request $request, Assessment $assessment): JsonResponse
+    {
+        $this->ensureAdmin($request);
+        $copy = DB::transaction(function () use ($assessment, $request) {
+            $root = $assessment->parent_assessment_id ?? $assessment->id;
+            Assessment::whereKey($root)->lockForUpdate()->firstOrFail();
+            $copy = $assessment->replicate();
+            $copy->parent_assessment_id = $root;
+            $copy->version = (int) Assessment::whereKey($root)->orWhere('parent_assessment_id', $root)->max('version') + 1;
+            $copy->is_published = false;
+            $copy->created_by = $request->user()->id;
+            $copy->save();
+            foreach ($assessment->questions as $question) $copy->questions()->create($question->only(['question', 'options', 'correct_option', 'points', 'position']));
+            return $copy->loadCount('questions');
+        });
+        return response()->json($this->data($copy), 201);
+    }
+
     /** @return array<string, mixed> */
     private function data(Assessment $assessment): array
     {
         return [
             'id' => $assessment->id,
+            'version' => $assessment->version,
+            'locked' => $assessment->attempts()->exists(),
+            'skillNames' => $assessment->skill_names ?? [],
             'title' => $assessment->title,
             'category' => $assessment->category,
             'description' => $assessment->description,

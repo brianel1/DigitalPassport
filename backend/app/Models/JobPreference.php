@@ -19,6 +19,8 @@ class JobPreference extends Model
             'preferred_locations' => 'array',
             'work_types' => 'array',
             'accepts_remote' => 'boolean',
+            'minimum_salary' => 'float',
+            'maximum_salary' => 'float',
         ];
     }
 

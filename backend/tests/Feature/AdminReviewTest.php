@@ -20,6 +20,7 @@ class AdminReviewTest extends TestCase
             'description' => 'A verified student portfolio.',
             'technologies' => ['Laravel', 'Vue'],
             'completion_date' => '2026-10-01',
+            'project_url' => 'https://github.com/example/portfolio',
         ]);
         Sanctum::actingAs($admin);
 
@@ -45,6 +46,33 @@ class AdminReviewTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
         $this->getJson('/api/admin/reviews')->assertForbidden();
         $this->getJson('/api/admin/dashboard-stats')->assertForbidden();
+    }
+
+    public function test_skill_needs_a_verified_linked_project_with_proof(): void
+    {
+        $student = User::factory()->create();
+        $admin = User::factory()->create(['role' => 'admin', 'matric_no' => null]);
+        $skill = $student->skills()->create([
+            'name' => 'Laravel', 'category' => 'web-development', 'proficiency' => 'intermediate',
+        ]);
+        $project = $student->projects()->create([
+            'title' => 'Real source project',
+            'description' => 'A repository submitted for administrator inspection.',
+            'technologies' => ['Laravel'],
+            'repository_url' => 'https://github.com/example/project',
+            'completion_date' => '2026-10-01',
+        ]);
+        $project->skills()->attach($skill->id);
+        Sanctum::actingAs($admin);
+
+        $this->putJson("/api/admin/reviews/skill/{$skill->id}", ['decision' => 'verified'])
+            ->assertUnprocessable();
+        $this->putJson("/api/admin/reviews/project/{$project->id}", ['decision' => 'verified'])
+            ->assertOk();
+        $this->putJson("/api/admin/reviews/skill/{$skill->id}", ['decision' => 'verified'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('skills', ['id' => $skill->id, 'status' => 'verified']);
     }
 
     public function test_dashboard_stats_include_pending_skills(): void

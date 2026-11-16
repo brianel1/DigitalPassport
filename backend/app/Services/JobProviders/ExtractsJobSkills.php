@@ -11,11 +11,16 @@ trait ExtractsJobSkills
             'PHP', 'Laravel', 'JavaScript', 'TypeScript', 'Vue.js', 'React', 'MySQL',
             'PostgreSQL', 'SQL', 'REST API', 'Git', 'Python', 'Java', 'C#', '.NET',
             'Docker', 'AWS', 'Linux', 'HTML', 'CSS', 'Tailwind CSS', 'Node.js',
-            'Troubleshooting', 'Communication',
+            'C++', 'Golang', 'Kotlin', 'Swift', 'Flutter', 'Dart', 'Angular', 'Spring Boot',
+            'Azure', 'Google Cloud', 'Kubernetes', 'MongoDB', 'Redis', 'Cybersecurity',
+            'Power BI', 'Tableau', 'Excel', 'MATLAB', 'AutoCAD', 'SolidWorks', 'SAP',
+            'Figma', 'Photoshop', 'SEO', 'Digital Marketing', 'Social Media',
+            'Accounting', 'Bookkeeping', 'Financial Reporting', 'Taxation', 'Audit',
+            'Project Management', 'Customer Service', 'Sales', 'Troubleshooting', 'Communication',
         ];
 
         return collect($skills)
-            ->filter(fn ($skill) => str_contains(mb_strtolower($text), mb_strtolower($skill)))
+            ->filter(fn ($skill) => preg_match('/(?<![\p{L}\p{N}])'.preg_quote($skill, '/').'(?![\p{L}\p{N}])/iu', $text))
             ->values()
             ->all();
     }

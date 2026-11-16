@@ -33,6 +33,19 @@ Thumbs.db
 /prompt update latest dari aku.md
 /design-system/
 
+# Only runtime and supported maintenance tooling belongs in the shared scripts folder.
+# Ad-hoc QA, recording, research and machine-specific helpers stay local.
+/scripts/*
+!/scripts/ocr_cv.py
+!/scripts/ocr_requirements.txt
+!/scripts/export_schema_snapshot.php
+!/scripts/validate_sql_snapshots.php
+!/scripts/sync_local_admin.php
+
+# Superseded media and internal asset-generation notes
+/frontend/public/media/skills-journey*
+/frontend/public/media/ASSET_NOTES.md
+
 # Python bytecode
 __pycache__/
 *.py[cod]

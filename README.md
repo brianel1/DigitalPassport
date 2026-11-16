@@ -68,7 +68,7 @@ py -3.11 -m venv .venv-ocr311
 .venv-ocr311\Scripts\python.exe -m pip install -r scripts\ocr_requirements.txt
 ```
 
-Laravel discovers `.venv-ocr311\Scripts\python.exe` automatically on Windows. Set `OCR_PYTHON` in `backend/.env` only if using another executable path; clear a cached Laravel config after changing configuration. The recogniser runs locally, with bundled model files; CV documents are not sent to an external OCR service. Dependencies: [RapidOCR](https://github.com/RapidAI/RapidOCR) and [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/python_api.html). The admin health panel reports whether the configured OCR executable is present. A functional extraction check is available as `.venv-ocr311\Scripts\python.exe scripts\test_local_ocr.py`.
+Laravel discovers `.venv-ocr311\Scripts\python.exe` automatically on Windows. Set `OCR_PYTHON` in `backend/.env` only if using another executable path; clear a cached Laravel config after changing configuration. The recogniser runs locally, with bundled model files; CV documents are not sent to an external OCR service. Dependencies: [RapidOCR](https://github.com/RapidAI/RapidOCR) and [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/python_api.html). The admin health panel reports whether the configured OCR executable is present. To check extraction after setup, upload a scanned CV through the application and inspect its Source text before organising it.
 
 A terminal prefix such as `(.venv-ocr)` means that terminal has activated a Python virtual environment. It is not an error or a running service. Type `deactivate` in that terminal to leave it. The application calls the OCR executable directly, so activating an environment is unnecessary for Laravel or Vite. This machine also has an older `.venv-ocr` folder; the configured default is `.venv-ocr311`.
 
@@ -130,7 +130,7 @@ The public pages and both workspaces share a dark ink, cobalt and aqua palette, 
 
 The landing page uses an original illustrative student photograph, an interactive feature explorer and a **19-second recording of the actual product**. It follows a clearly labelled, isolated example student through evidence submission, admin verification, a real Ollama search and CV creation. Long waits are edited out. The video pauses off screen, exposes play/pause controls and uses its poster by default when reduced motion or data saving is enabled. Small-screen media is about 244–258 KB, the desktop recording about 558–563 KB. See the asset notes for provenance and capture scripts.
 
-The requested [UI UX Pro Max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) guided the revision. [Media provenance](frontend/public/media/ASSET_NOTES.md) is included with the assets; generated design and browser QA reports stay local.
+The requested [UI UX Pro Max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) guided the revision. The student illustration and Navi character were generated for this project. The landing video records the application using a clearly labelled fictional example account, with waiting time shortened. Self-hosted Outfit and Work Sans include their OFL licences in `frontend/public/fonts/`. Internal generation prompts, superseded media and browser QA reports stay local.
 
 ## Technology
 
@@ -203,9 +203,9 @@ Login checks the `users` table. Editing `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `bac
 php scripts\sync_local_admin.php --apply
 ```
 
-The helper updates the existing local administrator and hashes the password, preserving the account ID and records. It refuses ambiguous account selection or an email already owned by a student. Run without `--apply` to preview. A database import or server restart is not required. Credentials stay in the ignored `.env` file; the setup helper preserves custom administrator values.
+The helper updates the existing local administrator and hashes the password, preserving the account ID and records. It refuses ambiguous account selection or an email already owned by a student. Run without `--apply` to preview. A database import or server restart is not required. Credentials stay in the ignored `.env` file.
 
-For a quick local check from the repository root, run `python scripts\check_local_app.py`, `php scripts\check_ai.php`, or `php scripts\check_matching.php`. The matching check rolls back its temporary records. `C:\xampp\mysql\bin\mysql.exe -u root < scripts\verify_live.sql` shows the live database counts without changing data.
+The maintained regression suite lives in `backend/tests/`; run `php artisan test` from `backend`. Run `npm run build` from `frontend` to check TypeScript and production bundling. Temporary live-API probes, browser recording scripts and fixture generators are not part of the shared repository.
 
 ### Fresh machine setup
 
@@ -218,18 +218,26 @@ copy .env.example .env
 php artisan key:generate
 ```
 
-Make sure MySQL is running and adjust the credentials in `backend/.env`. On XAMPP with a local root account, from the repository root:
+Make sure MySQL is running. Create an empty `digitalpassport` database in phpMyAdmin and set the matching database credentials in `backend/.env`. Also set your local administrator credentials and installed models explicitly:
+
+```env
+DB_DATABASE=digitalpassport
+ADMIN_NAME="Local Administrator"
+ADMIN_EMAIL=admin@utem.edu.my
+ADMIN_PASSWORD=admin123
+OLLAMA_MODEL=qwen3:4b
+OLLAMA_CHAT_MODEL=qwen3.5:4b
+```
+
+These administrator credentials are for local development. For an empty database, run from `backend`:
 
 ```cmd
-python scripts\setup_local.py
-C:\xampp\mysql\bin\mysql.exe -u root < scripts\create_live_database.sql
-cd backend
 php artisan migrate
 php artisan db:seed
 php artisan jobs:sync
 ```
 
-`setup_local.py` is an optional fresh-machine helper; it preserves an existing database/model/admin configuration. The current workspace uses `OLLAMA_MODEL=qwen3:4b` for structured document tasks and `OLLAMA_CHAT_MODEL=qwen3.5:4b` for Navi, selected after local comparisons. On a fresh machine install them with `ollama pull qwen3:4b` and `ollama pull qwen3.5:4b`, then set those variables. The models are already installed here. Requests disable thinking output and use 4096 tokens for smaller requests, increasing the window for longer input. First use/model switching can be slower on the laptop's 4 GB GPU. Configuration changes do not require a database import; if a manually managed server retains old environment settings, restart that terminal yourself. Reference: [Qwen3](https://ollama.com/library/qwen3:4b), [Qwen3.5](https://ollama.com/library/qwen3.5:4b), [Ollama chat roles and thinking](https://docs.ollama.com/api/chat).
+The application uses `OLLAMA_MODEL=qwen3:4b` for structured document tasks and `OLLAMA_CHAT_MODEL=qwen3.5:4b` for Navi, selected after local comparisons. On a fresh machine install them with `ollama pull qwen3:4b` and `ollama pull qwen3.5:4b`, then set those variables. Requests disable thinking output and use 4096 tokens for smaller requests, increasing the window for longer input. First use/model switching can be slower on a 4 GB GPU. Configuration changes do not require a database import; if a manually managed server retains old environment settings, restart that terminal yourself. Reference: [Qwen3](https://ollama.com/library/qwen3:4b), [Qwen3.5](https://ollama.com/library/qwen3.5:4b), [Ollama chat roles and thinking](https://docs.ollama.com/api/chat).
 
 ### Frontend (Vue)
 
@@ -258,7 +266,21 @@ C:\xampp\mysql\bin\mysql.exe -u root < backend\database\sql\database_with_data.s
 
 Set `DB_DATABASE=digitalpassport` and your `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `backend/.env`, then run `php artisan config:clear`, `php artisan migrate` and `php artisan db:seed` from `backend`. The seeder provisions the admin from those local credentials. SQL snapshots do not include uploaded files, installed dependencies or Ollama model files; follow the setup sections above for those.
 
-`php scripts\export_schema_snapshot.php` regenerates both files in `backend/database/sql/` from the current schema, authored assessment bank and explicit demo fixture in one command, without exporting personal data. `php scripts\check_cv_schema.php` compares complete definitions, including types, defaults, indexes, constraints and migration coverage, with read-only database access. Adding `--import-check` also imports each file into its own newly created temporary database, validates the demo login, table counts and all seeded questions/answers/skill mappings, then removes only those temporary databases. Reports are generated locally under the ignored `design-system/` directory.
+`php scripts\export_schema_snapshot.php` regenerates both files in `backend/database/sql/` from the current schema, authored assessment bank and explicit demo fixture in one command, without exporting personal data. `php scripts\validate_sql_snapshots.php` compares complete definitions, including types, defaults, indexes, constraints and migration coverage, with read-only database access. Adding `--import-check` also imports each file into its own newly created temporary database, validates the demo login, table counts and all seeded questions/answers/skill mappings, then removes only those temporary databases. Results are printed in the terminal.
+
+### Shared tooling
+
+Only these five files in `scripts/` are versioned:
+
+| File | Purpose |
+|---|---|
+| `ocr_cv.py` | Called by Laravel to read scanned CV pages. |
+| `ocr_requirements.txt` | Pinned dependencies for local OCR. |
+| `export_schema_snapshot.php` | Regenerate the two shareable SQL snapshots. |
+| `validate_sql_snapshots.php` | Check snapshot schema and optionally test isolated imports. |
+| `sync_local_admin.php` | Preview/apply a local administrator credential change while preserving its account ID. |
+
+The `.gitignore` rules exclude other files in this directory by default. Add a deliberate exception only for a maintained tool required by the application or team. Keep automated application tests under `backend/tests/`.
 
 ### Available API Endpoints
 

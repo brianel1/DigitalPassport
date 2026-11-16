@@ -1,7 +1,6 @@
 <?php
 // Default: read-only comparison. --import-check creates/drops its own disposable database only.
 require __DIR__.'/../backend/vendor/autoload.php';
-if(in_array('--import-check',$argv,true)) require __DIR__.'/review_output.php';
 $app=require __DIR__.'/../backend/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $db=Illuminate\Support\Facades\DB::connection();
@@ -80,4 +79,3 @@ foreach(['database_clean.sql','database_with_data.sql'] as $file){
     $report['files'][$file]=$result;
     echo $file.': full schema matches ('.count($live).' tables, '.count($migrations).' migrations); '.$result['import'].".\n";
 }
-if(in_array('--import-check',$argv,true))file_put_contents(__DIR__.'/../design-system/skills-career/sql-verification-2026-11-16.json',json_encode($report,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));

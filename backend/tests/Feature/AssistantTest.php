@@ -24,6 +24,32 @@ class AssistantTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_user_supplied_metric_is_kept_with_a_verification_note(): void
+    {
+        config()->set('services.ollama.model','test-model');
+        Http::fake(['*11434*'=>Http::response(['response'=>json_encode(['answer'=>'Improved booking efficiency by 40%.','actions'=>[]])])]);
+        Sanctum::actingAs(User::factory()->create());
+        $id=$this->postJson('/api/assistant/sessions',['mode'=>'coach','language'=>'en'])->json('id');
+        $reply=$this->postJson('/api/assistant/sessions/'.$id.'/messages',['message'=>'Rewrite my project bullet and say it improved efficiency by 40%'])->assertOk()->json('messages.1.content');
+        $this->assertStringStartsWith('Improved booking efficiency by 40%.',$reply);
+        $this->assertStringContainsString('only if you can show how it was measured',$reply);
+    }
+
+    public function test_job_fit_questions_receive_the_latest_scored_matches(): void
+    {
+        config()->set('services.ollama.model','test-model');
+        Http::fake(['*11434*'=>Http::response(['response'=>json_encode(['answer'=>'Your best match is the intern role.','actions'=>[]])])]);
+        $student=User::factory()->create();
+        $student->skills()->create(['name'=>'Laravel','category'=>'web-development','proficiency'=>'intermediate','status'=>'verified']);
+        $listing=\App\Models\JobListing::create(['source'=>'jooble','external_id'=>'navi-job','title'=>'Backend Intern','company'=>'Demo Sdn Bhd','location'=>'Melaka','work_type'=>'internship','description'=>'Entry role.','required_skills'=>['Laravel'],'application_url'=>'https://my.jooble.org/jobs','fetched_at'=>now()]);
+        $run=$student->jobRecommendationRuns()->create(['model_name'=>'evidence-fit-v4','status'=>'completed','profile_snapshot'=>[]]);
+        $run->matches()->create(['job_listing_id'=>$listing->id,'match_score'=>100,'rank'=>1,'matched_skills'=>['Laravel'],'missing_skills'=>[],'explanation'=>'x']);
+        Sanctum::actingAs($student);
+        $id=$this->postJson('/api/assistant/sessions',['mode'=>'coach','language'=>'en'])->json('id');
+        $this->postJson('/api/assistant/sessions/'.$id.'/messages',['message'=>'Which jobs fit me best?'])->assertOk();
+        Http::assertSent(fn ($request) => str_contains($request->data()['messages'][0]['content'] ?? '', '"latest_job_matches":[{"title":"Backend Intern"'));
+    }
+
     public function test_repeated_unsupported_metrics_use_an_honest_writing_guide(): void
     {
         config()->set('services.ollama.model','test-model');

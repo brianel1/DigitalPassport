@@ -11,7 +11,6 @@ class AdminUserController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
 
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
@@ -60,7 +59,6 @@ class AdminUserController extends Controller
 
     public function show(Request $request, User $user): JsonResponse
     {
-        $this->ensureAdmin($request);
         abort_unless($user->role === 'student', 404);
 
         $user->load([
@@ -105,7 +103,6 @@ class AdminUserController extends Controller
 
     public function updateStatus(Request $request, User $user): JsonResponse
     {
-        $this->ensureAdmin($request);
         abort_unless($user->role === 'student', 404);
 
         $validated = $request->validate([
@@ -122,11 +119,6 @@ class AdminUserController extends Controller
             'message' => $user->is_active ? 'Student account activated.' : 'Student account suspended.',
             'user' => $this->summary($user->refresh()),
         ]);
-    }
-
-    private function ensureAdmin(Request $request): void
-    {
-        abort_unless($request->user()->role === 'admin', 403, 'Administrator access is required.');
     }
 
     /** @return array<string, mixed> */

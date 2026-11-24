@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\JobListing;
 use App\Models\User;
+use App\Support\MalaysiaLocation;
 
 class JobSearchContext
 {
@@ -23,7 +24,16 @@ class JobSearchContext
             && app(JobCatalogue::class)->eligible($listing)
             && (!$listing->expires_at || $listing->expires_at->isFuture())
             && !in_array($listing->link_status, [404, 410], true)
-            && (($user->jobPreference?->accepts_remote ?? true) || ($listing->source !== 'remotive'
-                && !preg_match('/remote|worldwide|anywhere|global/i', ($listing->location ?? '').' '.($listing->work_type ?? ''))));
+            && $this->inSelectedArea($listing, $user);
+    }
+
+    /** Remote roles follow the remote switch; on-site roles must be in a selected state (none selected = all of Malaysia). */
+    public function inSelectedArea(JobListing $listing, User $user): bool
+    {
+        if (MalaysiaLocation::isRemote($listing->location, $listing->work_type, $listing->source)) {
+            return (bool) ($user->jobPreference?->accepts_remote ?? false);
+        }
+        $states = MalaysiaLocation::normalise($user->jobPreference?->preferred_locations ?? []);
+        return !$states || in_array(MalaysiaLocation::stateOf($listing->location), $states, true);
     }
 }

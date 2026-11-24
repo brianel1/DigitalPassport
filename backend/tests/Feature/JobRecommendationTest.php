@@ -29,7 +29,8 @@ class JobRecommendationTest extends TestCase
         ]);
 
         $strong = $this->job('job-1', 'Junior Backend Developer', 'Melaka', ['PHP', 'Laravel', 'MySQL']);
-        $this->job('job-2', 'Frontend Developer', 'Kuala Lumpur', ['JavaScript', 'Vue.js', 'CSS']);
+        $this->job('job-2', 'Frontend Developer', 'Ayer Keroh, Melaka', ['JavaScript', 'Vue.js', 'CSS']);
+        $this->job('job-3', 'Backend Developer', 'Kuala Lumpur', ['PHP', 'Laravel', 'MySQL']);
         Sanctum::actingAs($student);
 
         $response = $this->postJson('/api/student/job-recommendations')
@@ -97,10 +98,107 @@ class JobRecommendationTest extends TestCase
         ]);
     }
 
+    public function test_navi_shortlist_keeps_model_order_while_list_keeps_fit_order(): void
+    {
+        config()->set('services.ollama.model', 'qwen3:4b');
+        $student = User::factory()->create();
+        $student->skills()->createMany([
+            ['name' => 'Laravel', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified'],
+            ['name' => 'Vue', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified'],
+        ]);
+        $strong = $this->job('ai-strong', 'Junior Full Stack Developer', 'Melaka', ['Laravel', 'Vue']);
+        $weaker = $this->job('ai-weaker', 'Backend Intern', 'Melaka', ['Laravel', 'PHP']);
+        Http::fake(['*127.0.0.1:11434/api/generate*' => Http::response(['response' => json_encode(['matches' => [
+            ['job_id' => $weaker->id, 'focus_skill' => 'Laravel'],
+            ['job_id' => $strong->id, 'focus_skill' => 'Vue'],
+        ]])])]);
+        Sanctum::actingAs($student);
+
+        $this->postJson('/api/student/job-recommendations')->assertCreated()
+            ->assertJsonPath('matches.0.job.id', $strong->id)
+            ->assertJsonPath('aiInsights.picks.0.jobId', $weaker->id)
+            ->assertJsonPath('aiInsights.picks.1.jobId', $strong->id);
+        Http::assertSent(fn ($request) => data_get($request->data(), 'format.required') === ['matches']);
+    }
+
+    public function test_ai_output_with_wrong_shape_is_logged_as_failed_and_falls_back(): void
+    {
+        config()->set('services.ollama.model', 'qwen3:4b');
+        Http::fake(['*127.0.0.1:11434/api/generate*' => Http::response(['response' => json_encode(['programme' => 'echoed profile'])])]);
+        $student = User::factory()->create();
+        $student->skills()->create(['name' => 'Laravel', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified']);
+        $this->job('ai-shape', 'Backend Developer', 'Melaka', ['Laravel']);
+        Sanctum::actingAs($student);
+
+        $this->postJson('/api/student/job-recommendations')->assertCreated()
+            ->assertJsonPath('modelName', 'evidence-fit-v4')
+            ->assertJsonPath('aiInsights', null);
+        $this->assertDatabaseHas('system_events', ['kind' => 'ai', 'status' => 'failed']);
+        $this->assertDatabaseMissing('system_events', ['kind' => 'ai', 'status' => 'completed']);
+    }
+
+    public function test_senior_titles_and_long_experience_requirements_reduce_student_fit(): void
+    {
+        $student = User::factory()->create();
+        $student->skills()->create(['name' => 'Laravel', 'category' => 'web-development', 'proficiency' => 'intermediate', 'status' => 'verified']);
+        $scorer = app(\App\Services\JobFitScorer::class);
+        $score = fn (string $title, string $description = 'Entry level role.') => $scorer->score(
+            tap($this->job(uniqid(), $title, 'Melaka', ['Laravel']), fn ($job) => $job->update(['description' => $description])), $student);
+
+        $this->assertEquals(100, $score('Junior Backend Developer')['score']);
+        $this->assertEquals(100, $score('Admin Staff')['score']);
+        $this->assertEquals(60, $score('Senior Backend Developer')['score']);
+        $this->assertEquals(50, $score('Principal Software Developer')['score']);
+        $senior = $score('Backend Developer', 'Requires 5+ years of Laravel experience.');
+        $this->assertEquals(60, $senior['score']);
+        $this->assertStringContainsString('5+ years', $senior['breakdown']['levelNote']);
+        $this->assertEquals(80, $score('Backend Developer', 'At least 3 years experience.')['score']);
+    }
+
+    public function test_location_filters_by_malaysian_state_and_remote_follows_its_switch(): void
+    {
+        config()->set('services.ollama.model', null);
+        $student = User::factory()->create();
+        Sanctum::actingAs($student);
+        $pj = $this->job('loc-pj', 'Developer', 'Petaling Jaya, Selangor', ['PHP']);
+        $jb = $this->job('loc-jb', 'Developer', 'Johor Bahru, 01, MY, Kuala Lumpur', ['PHP']);
+        $this->job('loc-remote', 'Developer', 'Worldwide', ['PHP']);
+
+        $this->getJson('/api/student/job-preferences')->assertOk()->assertJsonPath('acceptsRemote', false)->assertJsonPath('locationOptions.0', 'Johor');
+        $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonCount(2, 'matches');
+
+        $this->putJson('/api/student/job-preferences', ['preferred_locations' => ['PJ', 'Selangor', 'Johor'], 'accepts_remote' => false])
+            ->assertOk()->assertJsonPath('preferredLocations', ['Selangor', 'Johor']);
+        $this->putJson('/api/student/job-preferences', ['preferred_locations' => ['Selangor'], 'accepts_remote' => false])->assertOk();
+        $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonCount(1, 'matches')
+            ->assertJsonPath('matches.0.job.id', $pj->id)->assertJsonPath('matches.0.job.locationLabel', 'Petaling Jaya, Selangor');
+
+        $this->putJson('/api/student/job-preferences', ['preferred_locations' => ['Johor'], 'accepts_remote' => true])->assertOk();
+        $response = $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonCount(2, 'matches');
+        $this->assertEqualsCanonicalizing([$jb->id, 'Remote'], [collect($response->json('matches'))->firstWhere('job.remote', false)['job']['id'], collect($response->json('matches'))->firstWhere('job.remote', true)['job']['locationLabel']]);
+    }
+
+    public function test_role_search_uses_common_synonyms_and_state_pages_are_public_urls(): void
+    {
+        $catalogue = app(\App\Services\JobCatalogue::class);
+        $this->assertTrue($catalogue->matchesQuery($this->job('syn-web', 'Web Developer', 'Melaka', []), 'software developer'));
+        $this->assertTrue($catalogue->matchesQuery($this->job('syn-php', 'PHP Programmer', 'Melaka', []), 'software developer'));
+        $this->assertTrue($catalogue->matchesQuery($this->job('syn-li', 'Latihan Industri IT', 'Melaka', []), 'internship'));
+        $this->assertFalse($catalogue->matchesQuery($this->job('syn-mech', 'Mechanical Engineer', 'Melaka', []), 'software developer'));
+
+        $url = new \ReflectionMethod(\App\Services\JobProviders\PublicHtmlJobProvider::class, 'url');
+        $url->setAccessible(true);
+        $this->assertSame('https://www.ricebowl.my/jobsearch/jobs-in-melaka?page=2', $url->invoke(new \App\Services\JobProviders\PublicHtmlJobProvider('ricebowl'), '', 2, 'melaka'));
+        $this->assertSame('https://www.ricebowl.my/jobsearch/software-jobs-in-perak?page=1', $url->invoke(new \App\Services\JobProviders\PublicHtmlJobProvider('ricebowl'), 'software', 1, 'perak'));
+        $this->assertSame('https://www.jobstore.com/my/jobs/l-johor.html?page=1', $url->invoke(new \App\Services\JobProviders\PublicHtmlJobProvider('jobstore'), '', 1, 'johor'));
+    }
+
     public function test_salary_ceiling_can_be_set_without_a_minimum_and_remote_filter_updates_immediately(): void
     {
         config()->set('services.ollama.model', null);
-        Sanctum::actingAs(User::factory()->create());
+        $student = User::factory()->create();
+        $student->jobPreference()->create(['accepts_remote' => true]);
+        Sanctum::actingAs($student);
         $this->job('remote-filter', 'Developer', 'Worldwide', ['PHP']);
         $this->postJson('/api/student/job-recommendations')->assertCreated()->assertJsonCount(1, 'matches');
         $this->putJson('/api/student/job-preferences', ['minimum_salary' => null, 'maximum_salary' => 5000, 'accepts_remote' => false])->assertOk();

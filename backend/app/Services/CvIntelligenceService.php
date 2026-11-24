@@ -27,7 +27,8 @@ class CvIntelligenceService
         $content = $this->blank($user);
         if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $header, $m)) $content['personal']['email'] = $m[0];
         if (preg_match('/(?:phone(?: number)?|mobile|tel(?:ephone)?)\s*:?\s*([+\d][\d ()-]{7,}\d)/iu', $header, $m)
-            || preg_match('/(?:\+\d[\d ()-]{7,}\d)/u', $header, $m)) $content['personal']['phone'] = trim($m[1] ?? $m[0]);
+            || preg_match('/(?:\+\d[\d ()-]{7,}\d)/u', $header, $m)
+            || preg_match('/(?<!\d)0\d{1,2}[- ]?\d{3,4}[- ]?\d{4}(?!\d)/u', $header, $m)) $content['personal']['phone'] = trim($m[1] ?? $m[0]);
         $lines = explode("\n", $header);
         foreach (array_slice($lines, 0, 3) as $line) {
             if (mb_strlen($line) < 100 && preg_match('/^[\p{L} .\x27-]{3,}$/u', $line) && !preg_match('/resume|curriculum|vitae|summary|profile|contact/i', $line)) {
@@ -35,6 +36,7 @@ class CvIntelligenceService
             }
         }
         if (preg_match('/^(?:location|address|lokasi|alamat)\s*:\s*(.+)$/imu', $header, $m)) $content['personal']['location'] = $m[1];
+        elseif ($location = $this->contactLineLocation($lines)) $content['personal']['location'] = $location;
         if (preg_match('~(?:https?://)?(?:www\.)?(?:linkedin\.com/in/|github\.com/)[^\s|]+~iu', $header, $m)) $content['personal']['website'] = $m[0];
         $content['summary'] = Str::limit(preg_replace('/\s+/u', ' ', $sections['summary'] ?? ''), 3000, '');
         $content['skills'] = $parser->skills($sections['skills'] ?? '');
@@ -74,6 +76,10 @@ class CvIntelligenceService
                     $entry[$key]=is_string($value) && mb_strlen($value)<=($key==='period'?100:255) && $this->contains($source,$value) ? trim($value) : '';
                 }
                 if (!$entry[$keys[0]]) continue;
+                if ($section==='certifications' && preg_match('/^\(?(?:[a-z]{3,9}\.?\s+)?(?:19|20)\d{2}\)?$/i',$entry['issuer'])) {
+                    $entry['issueDate']=$entry['issueDate'] ?: trim($entry['issuer'],'()');
+                    $entry['issuer']='';
+                }
                 $anchors=array_values(array_filter(array_intersect_key($entry,array_flip(array_slice($keys,0,$section==='projects'?1:2)))));
                 $positions=[];
                 foreach ($sourceLines as $i=>$line) foreach ($anchors as $anchor) if ($this->contains($line,$anchor)) $positions[]=$i;
@@ -85,7 +91,7 @@ class CvIntelligenceService
             foreach ($accepted as $i=>$row) {
                 if (isset($seen[$row['start']])) continue;
                 $seen[$row['start']]=true;
-                $entry=$row['entry'];
+                $entry=$this->completeHeader($section,$row['entry'],$sourceLines[$row['start']]);
                 $end=count($sourceLines);
                 foreach (array_slice($accepted,$i+1) as $next) if ($next['start']>$row['start']) { $end=$next['start']; break; }
                 $block=array_slice($sourceLines,$row['start'],$end-$row['start']);
@@ -95,13 +101,17 @@ class CvIntelligenceService
                         // Metadata lines are displayed separately; preserve every other source line.
                         $metadata=false;
                         foreach (array_filter($entry) as $value) if ($this->contains($line,$value) && !preg_match('/^[●•▪*-]\s/u',$line)) { $metadata=true; break; }
+                        // A header line such as "Title - what it does" still carries a description.
+                        if ($metadata && ($rest = $this->headerRemainder($line, $entry)) !== '') $details[]=$rest;
                         if (!$metadata) $details[]=preg_replace('/^[●•▪*]\s*/u','',$line);
                     }
                     $entry['description']=Str::limit(implode("\n",$details),2000,'');
                     if ($section==='projects') $entry['technologies']=[];
                 }
                 if ($section==='education') {
-                    $entry['details']=implode("\n",array_filter($block,fn($line)=>preg_match('/\b(?:c?gpa|grade|honou?rs|distinction|dean|anugerah|pngk)\b/iu',$line) && !$this->contains($line,$entry['qualification'])));
+                    $entry['details']=implode("\n",array_filter(array_map(fn($line)=>!$this->contains($line,$entry['qualification']) ? $line
+                        : (preg_match('/\b(?:c?gpa|pngk)\s*:?\s*\d(?:\.\d+)?(?:\s*\/\s*\d(?:\.\d+)?)?|\b(?:first|second)[- ]class(?: upper| lower)?(?: honou?rs)?|\bdean\'?s list\b/iu',$line,$grade) ? $grade[0] : ''),
+                        array_filter($block,fn($line)=>preg_match('/\b(?:c?gpa|grade|honou?rs|distinction|dean|anugerah|pngk)\b/iu',$line)))));
                 }
                 $base[$section][]=$entry;
             }
@@ -193,6 +203,39 @@ class CvIntelligenceService
         preg_match_all('/[\p{L}\p{N}]+/u', mb_strtolower($suggested), $after);
         $grammar = explode(' ', 'a an the and or with in on at to for of by from as that which who this these those it its i my me am is are was were be been being have has had use uses using used build builds building built create creates creating created develop develops developing developed application applications app apps web development');
         return count(array_diff($after[0], $before[0], $grammar)) === 0;
+    }
+
+    /** @param array<int, string> $lines */
+    private function contactLineLocation(array $lines): string
+    {
+        foreach (array_slice($lines, 0, 5) as $line) {
+            if (!str_contains($line, '|') && !str_contains($line, '·')) continue;
+            foreach (preg_split('/\s*[|·]\s*/u', $line) as $part) {
+                if ($part !== '' && preg_match('/^[\p{L} ,.\'-]{3,60}$/u', $part) && !preg_match('/@|https?:|www\.|linkedin|github/i', $part)) return trim($part);
+            }
+        }
+        return '';
+    }
+
+    /** Extend a role cut at a comma, e.g. "Intern, Software Engineer - Company". */
+    private function completeHeader(string $section, array $entry, string $line): array
+    {
+        if ($section !== 'experience' || !$entry['role'] || !$entry['company']) return $entry;
+        $role = mb_stripos($line, $entry['role']);
+        $company = mb_stripos($line, $entry['company']);
+        if ($role === false || $company === false || $company <= $role) return $entry;
+        $full = trim(mb_substr($line, $role, $company - $role), " \t-–—|,@:");
+        $full = trim(preg_replace('/\s+at$/iu', '', $full));
+        if (mb_strlen($full) > mb_strlen($entry['role']) && mb_strlen($full) <= 120) $entry['role'] = $full;
+        return $entry;
+    }
+
+    private function headerRemainder(string $line, array $entry): string
+    {
+        $rest = $line;
+        foreach (array_filter($entry, 'is_string') as $value) $rest = str_ireplace($value, '', $rest);
+        $rest = trim(preg_replace(['/\(\s*\)/u', '/^[\s\-–—|:,]+|[\s\-–—|:,]+$/u'], '', $rest));
+        return str_word_count($rest) >= 3 ? $rest : '';
     }
 
     private function contains(string $source, string $value): bool

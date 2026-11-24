@@ -185,3 +185,6 @@ input[data-slot='input']:disabled, textarea[data-slot='textarea']:disabled { bac
   [data-slot='button'], .marketing-login { min-height: 44px; }
   [data-slot='button'][data-size^='icon'] { min-width: 44px; }
 }
+/* Skills profile: each section scrolls inside a fixed height so the four sections line up. */
+.profile-scroll { height:26rem; overflow-y:auto; padding-right:.35rem; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+@media print { .profile-scroll { height:auto; overflow:visible; padding-right:0; } }

@@ -19,8 +19,6 @@ class AdminDashboardController extends Controller
 {
     public function stats(Request $request): JsonResponse
     {
-        abort_unless($request->user()->role === 'admin', 403, 'Administrator access is required.');
-
         $pendingProjects = Project::where('status', 'pending')->count();
         $pendingCerts = Certification::where('status', 'pending')->count();
         $pendingSkills = Skill::where('status', 'pending')->count();

@@ -13,7 +13,6 @@ class SystemStatusController extends Controller
 {
     public function show(Request $request)
     {
-        abort_unless($request->user()->role==='admin',403);
         $ai=Cache::remember('admin-ai-health',10,function(){
             $model=config('services.ollama.model');
             $status=['configured'=>filled($model),'reachable'=>false,'modelAvailable'=>false,'model'=>$model];
@@ -44,7 +43,6 @@ class SystemStatusController extends Controller
 
     public function sync(Request $request,JobSyncService $sync,JobLinkChecker $links)
     {
-        abort_unless($request->user()->role==='admin',403);
         $lock=Cache::lock('provider-sync',600);abort_unless($lock->get(),409,'A provider sync is already running.');
         try {set_time_limit(600);$results=$sync->sync();$count=$links->check(10);return response()->json(['providers'=>$results,'linksChecked'=>$count]);}
         finally{$lock->release();}

@@ -46,9 +46,13 @@ return [
 
     'public_jobs' => [
         'sources' => ['hiredly', 'jobstore', 'ricebowl', 'maukerja', 'jobstreet'],
-        'queries' => ['software', 'data', 'internship', 'engineering', 'accounting', 'marketing'],
+        'queries' => ['software', 'developer', 'it', 'data', 'internship', 'engineering', 'accounting', 'marketing', 'admin', 'customer service', 'sales', 'graduate'],
         'pages' => (int) env('PUBLIC_JOBS_PAGES', 3),
-        'detail_limit' => (int) env('PUBLIC_JOBS_DETAIL_LIMIT', 24),
+        'detail_limit' => (int) env('PUBLIC_JOBS_DETAIL_LIMIT', 150),
+        // Public state pages (e.g. /jobsearch/jobs-in-melaka) give every state its own listings, not only Klang Valley.
+        'regions' => ['johor', 'kedah', 'kelantan', 'melaka', 'negeri-sembilan', 'pahang', 'perak', 'perlis', 'pulau-pinang', 'sabah', 'sarawak', 'selangor', 'terengganu', 'kuala-lumpur', 'labuan', 'putrajaya'],
+        'region_queries' => ['', 'software', 'internship'],
+        'region_pages' => (int) env('PUBLIC_JOBS_REGION_PAGES', 2),
     ],
 
     'ollama' => [
@@ -56,6 +60,7 @@ return [
         'model' => env('OLLAMA_MODEL'),
         'chat_model' => env('OLLAMA_CHAT_MODEL'),
         'timeout' => env('OLLAMA_TIMEOUT', 90),
+        'keep_alive' => env('OLLAMA_KEEP_ALIVE', '30m'),
     ],
 
     'ocr' => ['python' => env('OCR_PYTHON')],

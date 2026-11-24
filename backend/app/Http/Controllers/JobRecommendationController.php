@@ -30,6 +30,7 @@ class JobRecommendationController extends Controller
             'maximum_salary' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99', ...($request->filled('minimum_salary') ? ['gte:minimum_salary'] : [])],
         ]);
 
+        $validated['preferred_locations'] = \App\Support\MalaysiaLocation::normalise($validated['preferred_locations'] ?? []);
         $preference = $request->user()->jobPreference()->updateOrCreate(
             ['user_id' => $request->user()->id],
             $validated,
@@ -79,9 +80,10 @@ class JobRecommendationController extends Controller
     {
         return [
             'preferredFields' => $preference?->preferred_fields ?? [],
-            'preferredLocations' => $preference?->preferred_locations ?? [],
+            'preferredLocations' => \App\Support\MalaysiaLocation::normalise($preference?->preferred_locations ?? []),
+            'locationOptions' => \App\Support\MalaysiaLocation::states(),
             'workTypes' => $preference?->work_types ?? [],
-            'acceptsRemote' => $preference?->accepts_remote ?? true,
+            'acceptsRemote' => $preference?->accepts_remote ?? false,
             'minimumSalary' => $preference?->minimum_salary,
             'maximumSalary' => $preference?->maximum_salary,
         ];
@@ -131,6 +133,8 @@ class JobRecommendationController extends Controller
                     'title' => $match->listing->title,
                     'company' => $match->listing->company,
                     'location' => $match->listing->location,
+                    'locationLabel' => \App\Support\MalaysiaLocation::label($match->listing->location, $match->listing->work_type, $match->listing->source),
+                    'remote' => \App\Support\MalaysiaLocation::isRemote($match->listing->location, $match->listing->work_type, $match->listing->source),
                     'workType' => $match->listing->work_type,
                     'salaryMin' => $match->listing->salary_min,
                     'salaryMax' => $match->listing->salary_max,

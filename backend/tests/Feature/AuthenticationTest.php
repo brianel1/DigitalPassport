@@ -25,6 +25,7 @@ class AuthenticationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('user.role', 'student')
             ->assertJsonPath('user.matricNo', 'B032610001')
+            ->assertJsonPath('user.isActive', true)
             ->assertJsonStructure(['user', 'token']);
 
         $this->assertDatabaseHas('users', [
@@ -76,6 +77,13 @@ class AuthenticationTest extends TestCase
             'email' => 'student@student.utem.edu.my',
             'password' => 'wrong-password',
         ])->assertUnprocessable();
+    }
+
+    public function test_repeated_failed_logins_are_rate_limited(): void
+    {
+        $attempt = fn () => $this->postJson('/api/auth/login', ['email' => 'student@student.utem.edu.my', 'password' => 'wrong-password']);
+        foreach (range(1, 10) as $i) $attempt()->assertUnprocessable();
+        $attempt()->assertTooManyRequests();
     }
 
     public function test_a_previous_browser_token_expires_after_two_hours(): void

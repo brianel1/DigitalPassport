@@ -32,7 +32,7 @@ class GeneratedCvController extends Controller
         $validated = $request->validate(['title' => ['sometimes', 'required', 'string', 'max:160'], 'target_job_listing_id' => ['nullable', 'integer', 'exists:job_listings,id']]);
         $targetJob = isset($validated['target_job_listing_id']) ? JobListing::findOrFail($validated['target_job_listing_id']) : null;
         abort_if($targetJob && (! $targetJob->fetched_at || $targetJob->fetched_at->lt(now()->subDays(14)) || $targetJob->expires_at?->isPast()), 422, 'This listing is stale. Refresh job matches first.');
-        set_time_limit(240);
+        set_time_limit(420);
         return response()->json($this->data($service->generate($request->user(), $targetJob, $validated['title'] ?? null)), 201);
     }
 
@@ -110,7 +110,7 @@ class GeneratedCvController extends Controller
     public function export(Request $request, GeneratedCv $cv, string $format, CvExportService $service): BinaryFileResponse
     {
         $this->ensureOwner($request, $cv);
-        abort_unless(in_array($format, ['pdf', 'word'], true), 404);
+        abort_unless(in_array($format, ['pdf', 'word'], true), 422, 'Choose PDF or Word as the export format.');
         \Illuminate\Support\Facades\Validator::make($cv->content, ['personal.name' => ['required'], 'personal.email' => ['required', 'email']], [], ['personal.name' => 'full name', 'personal.email' => 'contact email'])->validate();
 
         try { $path = $format === 'pdf' ? $service->pdf($cv) : $service->word($cv); app(\App\Services\SystemEventLog::class)->record('export','completed','Document export completed.'); }

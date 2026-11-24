@@ -18,8 +18,9 @@ class AssistantController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate(['cv_id' => ['nullable', 'integer'], 'mode' => ['required', 'in:coach,interview'], 'language' => ['sometimes', 'required', 'in:en,ms']]);
+        $data = $request->validate(['cv_id' => ['nullable', 'integer'], 'mode' => ['sometimes', 'in:coach,interview'], 'language' => ['sometimes', 'required', 'in:en,ms']]);
         if (! empty($data['cv_id'])) abort_unless($request->user()->role === 'student' && $request->user()->generatedCvs()->whereKey($data['cv_id'])->exists(), 404);
+        $data['mode'] ??= 'coach';
         abort_if($request->user()->role === 'admin' && $data['mode'] === 'interview', 422, 'Interview practice is available in the student workspace.');
         $session = AssistantSession::create(['user_id' => $request->user()->id, 'generated_cv_id' => $data['cv_id'] ?? null, 'mode' => $data['mode'], 'language' => $data['language'] ?? null, 'messages' => []]);
         return response()->json($this->data($session), 201);

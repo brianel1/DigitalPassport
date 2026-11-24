@@ -25,6 +25,7 @@ class CvGeneratorService
             'title' => $project->title,
             'description' => $project->description,
             'technologies' => $project->technologies ?? [],
+            'role' => $project->role,
         ])->values()->all();
         if ($targetJob) {
             usort($projects, function ($a, $b) use ($wanted) {
@@ -76,13 +77,16 @@ class CvGeneratorService
             'experience' => [],
             'additional' => '',
         ];
-        // AI returns optional suggestions. The original facts remain the editable draft
-        // until the student explicitly applies a reviewed suggestion.
+        // Verified facts stay in provenance; the draft receives grounded recruiter-style wording.
+        $content['projects'] = array_map(fn ($project) => array_diff_key($project, ['role' => true]), $projects);
+        $source = $content;
+        $writing = app(CvWriterService::class)->write($content, $user, $projects, $targetJob);
+        $content = $writing['content'];
         $draft = new GeneratedCv(['content' => $content]);
         $draft->setRelation('user', $user)->setRelation('targetJob', $targetJob);
         $analysis = app(CvIntelligenceService::class)->review($draft);
-        $modelName = $analysis['engine'];
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $content, $targetJob, $title, $analysis, $modelName) {
+        $modelName = $writing['written'] ? 'ollama:'.$this->ollama->modelName() : $analysis['engine'];
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $content, $source, $targetJob, $title, $analysis, $modelName) {
             $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
             return $user->generatedCvs()->create([
                 'title' => $title ?: Str::limit($targetJob ? "{$user->name} - {$targetJob->title}" : "{$user->name} CV", 160, ''),
@@ -90,8 +94,8 @@ class CvGeneratorService
                 'version' => ((int) $user->generatedCvs()->max('version')) + 1, 'status' => 'draft',
                 'model_name' => $modelName, 'analysis' => $analysis,
                 'provenance' => [
-                    'method' => 'verified-records-and-opt-in-review-v2', 'model' => $modelName,
-                    'generated_at' => now()->toISOString(), 'source_content' => $content,
+                    'method' => 'verified-records-with-grounded-writing-v3', 'model' => $modelName,
+                    'generated_at' => now()->toISOString(), 'source_content' => $source,
                     'skill_ids' => $user->skills->where('status', 'verified')->pluck('id')->all(),
                     'project_ids' => $user->projects->where('status', 'verified')->pluck('id')->all(),
                     'certificate_ids' => $user->certifications->where('status', 'verified')->filter(fn ($c) => !$c->expiry_date || !$c->expiry_date->lt(today()))->pluck('id')->all(),

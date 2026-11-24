@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import ListPagination from '@/components/shared/ListPagination.vue'
 import ProfileSharing from '@/components/shared/ProfileSharing.vue'
 import TaskProgress from '@/components/shared/TaskProgress.vue'
-import { usePagination } from '@/composables/usePagination'
 import { computed, onMounted, ref } from 'vue'
 import { Award, BookOpenCheck, CheckCircle2, Download, FolderKanban, IdCard, Loader2, Sparkles } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
@@ -29,10 +27,6 @@ const verifiedProjects = computed(() => projects.value.filter((item) => item.sta
 const verifiedCertifications = computed(() => certifications.value.filter((item) => item.status === 'verified' && !item.expired))
 const passedAttempts = computed(() => {const best=new Map<number,typeof attempts.value[number]>();for(const item of attempts.value.filter(a=>a.passed)){const key=item.familyId??item.assessmentId; if(!best.has(key)||best.get(key)!.percentage<item.percentage)best.set(key,item)}return [...best.values()]})
 
-const {page:pageSkills,items:pagedSkills}=usePagination(verifiedSkills,6)
-const {page:pageProjects,items:pagedProjects}=usePagination(verifiedProjects,6)
-const {page:pageCertifications,items:pagedCertifications}=usePagination(verifiedCertifications,6)
-const {page:pageResults,items:pagedResults}=usePagination(passedAttempts,6)
 async function downloadPassport() {
   exporting.value = true
   error.value = ''
@@ -78,36 +72,32 @@ async function downloadPassport() {
         <section>
           <div class="mb-4 flex items-center gap-2"><Sparkles class="size-5 text-primary" /><h3 class="font-semibold">Verified skills</h3></div>
           <div v-if="verifiedSkills.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified skills yet.</div>
-          <div class="space-y-3">
-            <div v-for="skill in pagedSkills" :key="skill.id" class="rounded-xl border border-border p-4">
+          <div v-if="verifiedSkills.length" class="profile-scroll space-y-3">
+            <div v-for="skill in verifiedSkills" :key="skill.id" class="rounded-xl border border-border p-4">
               <div class="flex items-center justify-between gap-3"><strong class="text-sm">{{ skill.name }}</strong><Badge variant="secondary">{{ skill.proficiency }}</Badge></div>
               <p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ skill.description }}</p><p v-if="skill.reviewerName" class="mt-2 text-xs text-muted-foreground">Verified by {{skill.reviewerName}} · {{new Date(skill.reviewedAt!).toLocaleDateString('en-MY')}}</p>
             </div>
           </div>
-        <ListPagination v-if="verifiedSkills.length>6" class="no-print mt-4" v-model:page="pageSkills" :total="verifiedSkills.length" :page-size="6" label="skills" />
         </section>
 
         <section>
           <div class="mb-4 flex items-center gap-2"><FolderKanban class="size-5 text-primary" /><h3 class="font-semibold">Verified projects</h3></div>
           <div v-if="verifiedProjects.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified projects yet.</div>
-          <div class="space-y-3">
-            <div v-for="project in pagedProjects" :key="project.id" class="rounded-xl border border-border p-4"><strong class="text-sm">{{ project.title }}</strong><p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ project.description }}</p><p v-if="project.reviewerName" class="mt-2 text-xs text-muted-foreground">Verified by {{project.reviewerName}} · {{new Date(project.reviewedAt!).toLocaleDateString('en-MY')}}</p><div class="mt-3 flex flex-wrap gap-1.5"><span v-for="technology in project.technologies" :key="technology" class="rounded bg-muted px-2 py-1 text-[11px]">{{ technology }}</span></div></div>
+          <div v-if="verifiedProjects.length" class="profile-scroll space-y-3">
+            <div v-for="project in verifiedProjects" :key="project.id" class="rounded-xl border border-border p-4"><strong class="text-sm">{{ project.title }}</strong><p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ project.description }}</p><p v-if="project.reviewerName" class="mt-2 text-xs text-muted-foreground">Verified by {{project.reviewerName}} · {{new Date(project.reviewedAt!).toLocaleDateString('en-MY')}}</p><div class="mt-3 flex flex-wrap gap-1.5"><span v-for="technology in project.technologies" :key="technology" class="rounded bg-muted px-2 py-1 text-[11px]">{{ technology }}</span></div></div>
           </div>
-        <ListPagination v-if="verifiedProjects.length>6" class="no-print mt-4" v-model:page="pageProjects" :total="verifiedProjects.length" :page-size="6" label="projects" />
         </section>
 
         <section>
           <div class="mb-4 flex items-center gap-2"><Award class="size-5 text-primary" /><h3 class="font-semibold">Certifications</h3></div>
           <div v-if="verifiedCertifications.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No verified certifications yet.</div>
-          <Card v-for="certification in pagedCertifications" :key="certification.id" class="mb-3 shadow-none"><CardHeader class="p-4"><CardTitle class="text-sm">{{ certification.title }}</CardTitle></CardHeader><CardContent class="px-4 pb-4 text-xs text-muted-foreground">{{ certification.issuingOrganization }} | {{ certification.issueDate }}<p v-if="certification.reviewerName" class="mt-2">Verified by {{certification.reviewerName}} · {{new Date(certification.reviewedAt!).toLocaleDateString('en-MY')}}</p><p v-if="certification.expiryDate" class="mt-1">Valid until {{certification.expiryDate}}</p></CardContent></Card>
-        <ListPagination v-if="verifiedCertifications.length>6" class="no-print mt-4" v-model:page="pageCertifications" :total="verifiedCertifications.length" :page-size="6" label="certifications" />
+          <div v-if="verifiedCertifications.length" class="profile-scroll"><Card v-for="certification in verifiedCertifications" :key="certification.id" class="mb-3 shadow-none"><CardHeader class="p-4"><CardTitle class="text-sm">{{ certification.title }}</CardTitle></CardHeader><CardContent class="px-4 pb-4 text-xs text-muted-foreground">{{ certification.issuingOrganization }} | {{ certification.issueDate }}<p v-if="certification.reviewerName" class="mt-2">Verified by {{certification.reviewerName}} · {{new Date(certification.reviewedAt!).toLocaleDateString('en-MY')}}</p><p v-if="certification.expiryDate" class="mt-1">Valid until {{certification.expiryDate}}</p></CardContent></Card></div>
         </section>
 
         <section>
           <div class="mb-4 flex items-center gap-2"><BookOpenCheck class="size-5 text-primary" /><h3 class="font-semibold">Assessment results</h3></div>
           <div v-if="passedAttempts.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No passed assessments yet.</div>
-          <div class="space-y-3"><div v-for="attempt in pagedResults" :key="attempt.id" class="flex items-center justify-between rounded-xl border border-border p-4"><div><strong class="text-sm">{{ attempt.assessmentTitle }}</strong><p class="mt-1 text-xs text-muted-foreground">Best result</p></div><span class="text-xl font-semibold text-primary">{{ attempt.percentage }}%</span></div></div>
-        <ListPagination v-if="passedAttempts.length>6" class="no-print mt-4" v-model:page="pageResults" :total="passedAttempts.length" :page-size="6" label="results" />
+          <div v-if="passedAttempts.length" class="profile-scroll space-y-3"><div v-for="attempt in passedAttempts" :key="attempt.id" class="flex items-center justify-between rounded-xl border border-border p-4"><div><strong class="text-sm">{{ attempt.assessmentTitle }}</strong><p class="mt-1 text-xs text-muted-foreground">Best result</p></div><span class="text-xl font-semibold text-primary">{{ attempt.percentage }}%</span></div></div>
         </section>
       </div>
 

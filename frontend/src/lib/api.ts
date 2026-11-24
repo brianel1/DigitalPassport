@@ -272,6 +272,7 @@ export interface StartedAssessmentResponse {
 export interface JobPreferenceResponse {
   preferredFields: string[]
   preferredLocations: string[]
+  locationOptions?: string[]
   workTypes: string[]
   acceptsRemote: boolean
   minimumSalary: number | null
@@ -292,6 +293,7 @@ export interface JobRecommendationMatch {
     assessable: boolean; matchedCount: number; requirementCount: number; skillCoverage: number; preferenceFactor: number
     preferences: Array<{label:string; matched:boolean; weight:number}>
     salaryCompared: boolean; formula: string; basis: string; limits: string
+    level?: string; levelFactor?: number; levelNote?: string | null
   }
   id: number
   rank: number
@@ -304,6 +306,8 @@ export interface JobRecommendationMatch {
     title: string
     company: string
     location: string | null
+    locationLabel?: string
+    remote?: boolean
     workType: string | null
     salaryMin: number | null
     salaryMax: number | null

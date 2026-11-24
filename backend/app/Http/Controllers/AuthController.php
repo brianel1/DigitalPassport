@@ -25,6 +25,7 @@ class AuthController extends Controller
             'email' => strtolower($validated['email']),
             'password' => $validated['password'],
             'role' => 'student',
+            'is_active' => true,
             'programme' => $validated['programme'],
             'matric_no' => strtoupper($validated['matric_no']),
         ]);

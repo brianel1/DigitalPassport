@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\JobListing;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class JobCatalogue
 {
@@ -32,10 +33,26 @@ class JobCatalogue
         foreach ($groups as $group) {
             $words = array_values(array_filter(explode(' ',$normalise($group)), fn ($word)=>$word!=='' && !in_array($word,['job','jobs','kerja','vacancy','vacancies','in','malaysia'],true)));
             if (!$words) return true;
-            if (collect($words)->every(fn ($word)=>preg_match('/(?<![\pL\pN])'.preg_quote($word,'/').'(?![\pL\pN])/iu',$text))) return true;
+            if (collect($words)->every(fn ($word)=>collect(self::SYNONYMS[$word] ?? [$word])->contains(fn ($term)=>preg_match('/(?<![\pL\pN])'.preg_quote($term,'/').'(?![\pL\pN])/iu',$text)))) return true;
         }
         return false;
     }
+
+    /** Role words that employers use interchangeably, so "software developer" also finds Web or PHP Developer roles. */
+    private const SYNONYMS = [
+        'developer' => ['developer', 'engineer', 'programmer', 'dev'],
+        'engineer' => ['engineer', 'developer'],
+        'programmer' => ['programmer', 'developer'],
+        'software' => ['software', 'web', 'full stack', 'frontend', 'backend', 'application', 'mobile', 'php', 'java', 'javascript', 'python', 'laravel', 'react', 'vue', '.net', 'it'],
+        'web' => ['web', 'frontend', 'full stack', 'wordpress', 'website'],
+        'it' => ['it', 'information technology', 'technical support', 'system', 'systems', 'network', 'helpdesk'],
+        'data' => ['data', 'analyst', 'analytics', 'bi', 'database'],
+        'intern' => ['intern', 'internship', 'industrial training', 'latihan industri', 'trainee', 'praktikal', 'pelatih'],
+        'internship' => ['intern', 'internship', 'industrial training', 'latihan industri', 'trainee', 'praktikal', 'pelatih'],
+        'admin' => ['admin', 'administrative', 'administration', 'clerk', 'pentadbiran'],
+        'accounting' => ['accounting', 'accountant', 'account', 'accounts', 'finance', 'akaun'],
+        'marketing' => ['marketing', 'digital marketing', 'social media', 'brand', 'pemasaran'],
+    ];
 
     public function key(JobListing $job): string
     {
@@ -62,8 +79,12 @@ class JobCatalogue
 
     public function summary(): array
     {
-        $jobs = $this->current();
-        return ['total'=>$jobs->count(), 'sources'=>$jobs->groupBy('source')->map(fn ($rows,$source)=>['source'=>$source,'count'=>$rows->count()])->values()->all(),
-            'lastUpdatedAt'=>$jobs->max('fetched_at')?->toISOString()];
+        // Loading and de-duplicating the whole catalogue is slow; reuse it until listings change.
+        $version = JobListing::query()->selectRaw('count(*) as total, max(updated_at) as changed')->first();
+        return Cache::remember('job-catalogue-summary:'.md5($version?->total.'|'.$version?->changed), now()->addHour(), function () {
+            $jobs = $this->current();
+            return ['total'=>$jobs->count(), 'sources'=>$jobs->groupBy('source')->map(fn ($rows,$source)=>['source'=>$source,'count'=>$rows->count()])->values()->all(),
+                'lastUpdatedAt'=>$jobs->max('fetched_at')?->toISOString()];
+        });
     }
 }

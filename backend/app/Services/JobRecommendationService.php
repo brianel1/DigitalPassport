@@ -35,15 +35,20 @@ class JobRecommendationService
         $evidence = app(VerifiedEvidence::class)->terms($user);
         $ranked = $listings->map(fn (JobListing $listing) => [...app(JobFitScorer::class)->score($listing,$user,$evidence), 'localPriority'=>$catalogue->localPriority($listing)])
             ->sortBy([['score','desc'],['localPriority','desc']])->values();
-        $modelName = 'evidence-fit-v3';
+        $modelName = 'evidence-fit-v4';
         $fingerprint = app(JobSearchContext::class)->fingerprint($user);
         $aiRanked = $this->rankWithAi($user, $assessmentResults, $ranked);
+        $picks = [];
         if ($aiRanked !== null) {
+            // The list stays ordered by the explainable fit score; Navi's shortlist keeps the model's order.
+            $picks = $aiRanked->filter(fn ($result) => isset($result['ai_note']))->map(fn ($result) => [
+                'jobId' => $result['listing']->id, 'title' => $result['listing']->title, 'note' => $result['ai_note'],
+            ])->values()->all();
             $ranked = $aiRanked->sortBy([['score','desc'],['localPriority','desc']])->values();
             $modelName = 'ollama:'.$this->ollama->modelName();
         }
 
-        return DB::transaction(function () use ($user, $verifiedSkills, $otherSkills, $projectTechnologies, $assessmentResults, $preference, $ranked, $modelName, $fingerprint) {
+        return DB::transaction(function () use ($user, $verifiedSkills, $otherSkills, $projectTechnologies, $assessmentResults, $preference, $ranked, $modelName, $fingerprint, $picks) {
             $run = JobRecommendationRun::create([
                 'user_id' => $user->id,
                 'profile_snapshot' => [
@@ -57,10 +62,7 @@ class JobRecommendationService
                 'model_name' => $modelName,
                 'status' => 'completed',
                 'ai_insights' => str_starts_with($modelName, 'ollama:') ? [
-                    'picks' => $ranked->filter(fn ($result) => isset($result['ai_note']))->map(fn ($result) => [
-                        'jobId' => $result['listing']->id, 'title' => $result['listing']->title,
-                        'note' => $result['ai_note'],
-                    ])->values()->all(),
+                    'picks' => $picks,
                     'reviewedAt' => now()->toISOString(),
                 ] : null,
             ]);
@@ -114,7 +116,15 @@ class JobRecommendationService
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).
             "\n\nJobs:\n".json_encode($jobs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-        $response = $this->ollama->generateJson($prompt);
+        $response = $this->ollama->generateJson($prompt, [
+            'type' => 'object',
+            'properties' => ['matches' => ['type' => 'array', 'items' => [
+                'type' => 'object',
+                'properties' => ['job_id' => ['type' => 'integer'], 'focus_skill' => ['type' => 'string']],
+                'required' => ['job_id', 'focus_skill'],
+            ]]],
+            'required' => ['matches'],
+        ], 400);
         $matches = data_get($response, 'matches');
         if (! is_array($matches)) {
             return null;
@@ -145,6 +155,7 @@ class JobRecommendationService
         }
 
         if ($ordered->isEmpty()) {
+            app(SystemEventLog::class)->record('ai', 'failed', 'Local AI returned no usable job IDs; the fit-score ranking was used.');
             return null;
         }
 

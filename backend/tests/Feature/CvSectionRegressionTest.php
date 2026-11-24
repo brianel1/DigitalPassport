@@ -33,6 +33,28 @@ class CvSectionRegressionTest extends TestCase
         $this->assertSame([],$cv['certifications']);
     }
 
+    public function test_single_line_headers_keep_contact_role_description_grade_and_date(): void
+    {
+        config()->set('services.ollama.model','test-model');
+        $text="Ahmad Bin Ali\nahmad.ali@gmail.com | 012-3456789 | Melaka\nEXPERIENCE\nIntern, Software Engineer - TM Berhad (Jun 2025 - Aug 2025)\n- Built REST APIs\nPROJECTS\nLibrary Management System - Java Swing app with MySQL for a campus library\nEDUCATION\nUniversiti Teknikal Malaysia Melaka - Bachelor of Computer Science, 2023-2027, CGPA 3.52\nCERTIFICATES\nOracle Certified Associate Java SE 8 (2024)";
+        // Mirrors the output qwen3:4b produced for this layout during QA.
+        Http::fake(['*'=>Http::response(['response'=>json_encode([
+            'education'=>[['institution'=>'Universiti Teknikal Malaysia Melaka','qualification'=>'Bachelor of Computer Science','period'=>'2023-2027']],
+            'experience'=>[['role'=>'Intern','company'=>'TM Berhad','period'=>'Jun 2025 - Aug 2025']],
+            'projects'=>[['title'=>'Library Management System']],
+            'certifications'=>[['title'=>'Oracle Certified Associate Java SE 8','issuer'=>'2024','issueDate'=>'2024']],
+        ])])]);
+        [$cv]=app(CvIntelligenceService::class)->structure($text,User::factory()->create());
+        $this->assertSame('012-3456789',$cv['personal']['phone']);
+        $this->assertSame('Melaka',$cv['personal']['location']);
+        $this->assertSame('Intern, Software Engineer',$cv['experience'][0]['role']);
+        $this->assertSame('- Built REST APIs',$cv['experience'][0]['description']);
+        $this->assertSame('Java Swing app with MySQL for a campus library',$cv['projects'][0]['description']);
+        $this->assertSame('CGPA 3.52',$cv['education'][0]['details']);
+        $this->assertSame('',$cv['certifications'][0]['issuer']);
+        $this->assertSame('2024',$cv['certifications'][0]['issueDate']);
+    }
+
     public function test_multiple_roles_keep_their_own_descriptions_and_reject_cross_section_values(): void
     {
         config()->set('services.ollama.model','test-model');

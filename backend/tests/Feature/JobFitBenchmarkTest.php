@@ -59,6 +59,7 @@ class JobFitBenchmarkTest extends TestCase
     public function test_search_is_explicit_and_ai_shortlist_expires_when_evidence_changes(): void
     {
         $user=User::factory()->create();Sanctum::actingAs($user);
+        $user->jobPreference()->create(['accepts_remote'=>true]);
         $base=['source'=>'remotive','location'=>'Worldwide','company'=>'Benchmark company','description'=>'A role for SQL skills','required_skills'=>['SQL'],'application_url'=>'https://remotive.com/test','fetched_at'=>now()];
         $job=JobListing::create([...$base,'title'=>'Database developer','external_id'=>'benchmark-sql']);
         JobListing::create([...$base,'title'=>'Designer','external_id'=>'benchmark-design','required_skills'=>['Figma']]);

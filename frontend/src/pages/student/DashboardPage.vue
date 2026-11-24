@@ -10,10 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/composables/useAuth'
 import { usePortalData } from '@/composables/usePortalData'
+import { usePagination } from '@/composables/usePagination'
+import ListPagination from '@/components/shared/ListPagination.vue'
 
 const { user } = useAuth()
 const { skills, projects, certifications, attempts, activity, studentError, refreshStudentData } = usePortalData()
 const loading = ref(true)
+const activityPage = usePagination(activity, 5)
 const progress=ref<StudentProgressResponse|null>(null)
 const progressError=ref('')
 onMounted(async () => {
@@ -63,7 +66,7 @@ function formatDate(value: string) { return new Intl.DateTimeFormat('en-MY', { d
 
     <StudentProgressPanel :progress="progress" />
     <section class="grid items-start gap-6 xl:grid-cols-[1.3fr_1fr]">
-      <Card class="tone-card tone-teal"><CardHeader><CardTitle>Recent activity</CardTitle><CardDescription>The latest changes to your skills and achievements.</CardDescription></CardHeader><CardContent><div v-if="!activity.length" class="empty-state"><FolderKanban class="mx-auto mb-3 size-7 text-primary" /><h3 class="text-sm font-semibold">Your story starts with one skill.</h3><p class="mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground">Add a skill or a piece of work. Your updates will appear here as you build your record.</p><Button as-child variant="outline" class="mt-5"><RouterLink to="/student/skills"><Plus class="size-4" /> Add a skill</RouterLink></Button></div><div v-for="item in activity" :key="item.id" class="flex gap-4 border-b py-4 first:pt-0 last:border-0"><span class="mt-1.5 size-2 shrink-0 rounded-full bg-teal"></span><div><p class="text-sm font-medium leading-6">{{ item.description }}</p><p class="mt-1 text-xs text-muted-foreground">{{ formatDate(item.timestamp) }}</p></div></div></CardContent></Card>
+      <Card class="tone-card tone-teal"><CardHeader><CardTitle>Recent activity</CardTitle><CardDescription>The latest changes to your skills and achievements.</CardDescription></CardHeader><CardContent><div v-if="!activity.length" class="empty-state"><FolderKanban class="mx-auto mb-3 size-7 text-primary" /><h3 class="text-sm font-semibold">Your story starts with one skill.</h3><p class="mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground">Add a skill or a piece of work. Your updates will appear here as you build your record.</p><Button as-child variant="outline" class="mt-5"><RouterLink to="/student/skills"><Plus class="size-4" /> Add a skill</RouterLink></Button></div><div v-for="item in activityPage.items.value" :key="item.id" class="flex gap-4 border-b py-4 first:pt-0 last:border-0"><span class="mt-1.5 size-2 shrink-0 rounded-full bg-teal"></span><div><p class="text-sm font-medium leading-6">{{ item.description }}</p><p class="mt-1 text-xs text-muted-foreground">{{ formatDate(item.timestamp) }}</p></div></div><ListPagination v-if="activityPage.total.value > activityPage.pageSize" v-model:page="activityPage.page.value" :total="activityPage.total.value" :page-size="activityPage.pageSize" label="updates" /></CardContent></Card>
       <Card class="tone-card tone-amber"><CardHeader><CardTitle>Review status</CardTitle><CardDescription>Keep an eye on your submitted evidence.</CardDescription></CardHeader><CardContent class="space-y-4"><div class="flex items-center gap-3 rounded-lg bg-warning-soft px-4 py-3 text-warning"><Clock3 class="size-4" /><span class="flex-1 text-sm">Awaiting review</span><strong class="text-lg tabular-nums">{{ pending }}</strong></div><div class="flex items-center justify-between gap-3 px-1 text-sm"><span class="text-muted-foreground">Records needing an update</span><strong>{{ needsUpdate }}</strong></div><p class="border-t pt-4 text-xs leading-6 text-muted-foreground">An administrator reviews the evidence linked to your records. Check each record for feedback and next steps.</p></CardContent></Card>
     </section>
   </div>

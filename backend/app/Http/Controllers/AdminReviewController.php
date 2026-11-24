@@ -18,7 +18,6 @@ class AdminReviewController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
 
         $validated = $request->validate([
             'status' => ['nullable', Rule::in(['pending', 'verified', 'rejected', 'all'])],
@@ -68,7 +67,6 @@ class AdminReviewController extends Controller
 
     public function evidence(Request $request, string $type, int $id, EvidenceFile $file)
     {
-        $this->ensureAdmin($request);
 
         $modelClass = match ($type) {
             'project' => Project::class,
@@ -86,7 +84,6 @@ class AdminReviewController extends Controller
 
     public function update(Request $request, string $type, int $id): JsonResponse
     {
-        $this->ensureAdmin($request);
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['verified', 'rejected'])],
             'remarks' => ['nullable', 'string', 'max:2000'],
@@ -140,11 +137,6 @@ class AdminReviewController extends Controller
             'skill' => Skill::findOrFail($id),
             default => abort(404),
         };
-    }
-
-    private function ensureAdmin(Request $request): void
-    {
-        abort_unless($request->user()->role === 'admin', 403, 'Administrator access is required.');
     }
 
     /** @return array<string, mixed> */

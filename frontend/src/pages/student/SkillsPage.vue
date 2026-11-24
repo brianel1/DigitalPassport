@@ -111,7 +111,7 @@ function titleCase(value: string) {
       <div><h1 class="page-heading">Skills portfolio</h1><p class="mt-1 text-muted-foreground">Document your competencies and connect them to evidence.</p></div>
       <Dialog v-model:open="dialogOpen">
         <DialogTrigger as-child><Button @click="openAdd"><Plus class="size-4" /> {{ form.name ? 'Resume skill draft' : 'Add skill' }}</Button></DialogTrigger>
-        <DialogContent>
+        <DialogContent class="max-h-[90vh] overflow-y-auto content-start sm:max-w-3xl sm:min-h-[34rem] sm:p-8">
           <DialogHeader><DialogTitle>{{ editingId ? 'Edit skill' : 'Add a skill' }}</DialogTitle><DialogDescription>Keep your competency record accurate for administrator review.</DialogDescription></DialogHeader>
           <form class="space-y-4" @submit.prevent="submit"><p class="text-xs leading-5 text-muted-foreground">Unfinished details are kept in this browser tab until you save.</p><p v-if="error" role="alert" class="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{{ error }}</p>
             <div class="space-y-2"><Label for="skill-name">Skill name</Label><Input id="skill-name" v-model="form.name" required /></div>
@@ -119,7 +119,7 @@ function titleCase(value: string) {
               <div class="space-y-2"><Label for="category">Category</Label><AppSelect id="category" v-model="form.category" class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" :options='[{"value": "programming", "label": "Programming"}, {"value": "databases", "label": "Databases"}, {"value": "web-development", "label": "Web Development"}, {"value": "cybersecurity", "label": "Cybersecurity"}, {"value": "data-analysis", "label": "Data Analysis"}, {"value": "networking", "label": "Networking"}, {"value": "cloud-computing", "label": "Cloud Computing"}]' /></div>
               <div class="space-y-2"><Label for="proficiency">Proficiency</Label><AppSelect id="proficiency" v-model="form.proficiency" class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" :options='[{"value": "beginner", "label": "Beginner"}, {"value": "intermediate", "label": "Intermediate"}, {"value": "advanced", "label": "Advanced"}, {"value": "expert", "label": "Expert"}]' /></div>
             </div>
-            <div class="space-y-2"><Label for="description">Description</Label><Textarea id="description" v-model="form.description" required /></div>
+            <div class="space-y-2"><Label for="description">Description</Label><Textarea id="description" v-model="form.description" rows="7" required /></div>
             <DialogFooter><Button type="button" variant="ghost" :disabled="submitting" @click="discardDraft">Discard draft</Button><Button type="submit" :disabled="submitting">{{ submitting ? 'Saving...' : editingId ? 'Save changes' : 'Submit skill' }}</Button></DialogFooter>
           </form>
         </DialogContent>

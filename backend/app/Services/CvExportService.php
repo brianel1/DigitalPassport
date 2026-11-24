@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\GeneratedCv;
+use App\Support\CvDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\Converter;
+use PhpOffice\PhpWord\Style\Tab;
 
 class CvExportService
 {
@@ -19,91 +21,43 @@ class CvExportService
         return Storage::disk('local')->path($path);
     }
 
+    /** Mirrors resources/views/cv/ats.blade.php: same A4 margins, fonts, sizes, order and bullets. */
     public function word(GeneratedCv $cv): string
     {
-        $content = $cv->content;
+        $doc = CvDocument::build($cv->content);
         \PhpOffice\PhpWord\Settings::setOutputEscapingEnabled(true);
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
-        $phpWord->setDefaultFontSize(9);
+        $phpWord->setDefaultFontSize(10);
+        $phpWord->setDefaultParagraphStyle(['spaceAfter' => 0, 'spaceBefore' => 0, 'lineHeight' => 1.15]);
         $section = $phpWord->addSection([
-            'marginTop' => Converter::inchToTwip(0.5),
-            'marginBottom' => Converter::inchToTwip(0.5),
-            'marginLeft' => Converter::inchToTwip(0.6),
-            'marginRight' => Converter::inchToTwip(0.6),
+            'paperSize' => 'A4',
+            'marginTop' => Converter::inchToTwip(0.55), 'marginBottom' => Converter::inchToTwip(0.55),
+            'marginLeft' => Converter::inchToTwip(0.6), 'marginRight' => Converter::inchToTwip(0.6),
         ]);
+        $textWidth = (int) round(Converter::inchToTwip(8.27 - 1.2));
+        $gray = '333333';
+        $phpWord->addNumberingStyle('cvBullet', ['type' => 'singleLevel', 'levels' => [['format' => 'bullet', 'text' => '•', 'left' => 320, 'hanging' => 200, 'tabPos' => 320]]]);
 
-        $personal = $content['personal'];
-        $section->addText(strtoupper($personal['name']), ['bold' => true, 'size' => 20], ['spaceAfter' => 30]);
-        if (! empty($personal['headline'])) {
-            $section->addText($personal['headline'], ['bold' => true, 'size' => 10, 'color' => '374151'], ['spaceAfter' => 30]);
-        }
-        $contact = collect([$personal['email'], $personal['phone'], $personal['location'], $personal['website'] ?? ''])->filter()->join(' | ');
-        $section->addText($contact, ['size' => 8, 'color' => '374151'], ['spaceAfter' => 80, 'borderBottomSize' => 8, 'borderBottomColor' => '111827']);
+        $section->addText(mb_strtoupper($doc['name']), ['bold' => true, 'size' => 20], ['alignment' => 'center']);
+        if ($doc['headline'] !== '') $section->addText($doc['headline'], ['size' => 10.5], ['alignment' => 'center', 'spaceBefore' => 60]);
+        if ($doc['contact'] !== '') $section->addText($doc['contact'], ['size' => 9, 'color' => $gray], ['alignment' => 'center', 'spaceBefore' => 60]);
 
-        $section->addText('', [], ['spaceAfter' => 30]);
-        $left = $section;
-        $right = $section;
-
-        if (! empty($content['summary'])) {
-            $this->heading($left, 'SUMMARY');
-            $left->addText($content['summary'], [], ['spaceAfter' => 100]);
-        }
-
-        if (! empty($content['experience'])) {
-            $this->heading($left, 'WORK EXPERIENCE');
-            foreach ($content['experience'] as $entry) {
-                $left->addText($entry['role'], ['bold' => true], ['spaceBefore' => 55, 'spaceAfter' => 20]);
-                $left->addText(collect([$entry['company'], $entry['period']])->filter()->join(' | '), ['size' => 8, 'color' => '4B5563']);
-                $left->addText($entry['description'], [], ['spaceAfter' => 80]);
+        foreach ($doc['sections'] as $part) {
+            $section->addText(mb_strtoupper($part['title']), ['bold' => true, 'size' => 10.5, 'spacing' => 16], [
+                'spaceBefore' => 240, 'spaceAfter' => 100, 'borderBottomSize' => 6, 'borderBottomColor' => '111111',
+            ]);
+            if ($part['paragraph'] !== '') $section->addText($part['paragraph'], [], ['spaceAfter' => 60]);
+            foreach ($part['entries'] as $entry) {
+                $row = $section->addTextRun(['spaceBefore' => 100, 'keepNext' => true, 'tabs' => [new Tab('right', $textWidth)]]);
+                $row->addText($entry['title'], ['bold' => true]);
+                if ($entry['date'] !== '') $row->addText("\t".$entry['date'], ['size' => 9, 'color' => $gray]);
+                if ($entry['subtitle'] !== '') $section->addText($entry['subtitle'], ['italic' => true, 'size' => 9.5, 'color' => $gray], ['spaceBefore' => 20, 'keepNext' => (bool) $entry['bullets']]);
+                foreach ($entry['bullets'] as $bullet) $section->addListItem($bullet, 0, [], 'cvBullet', ['spaceBefore' => 40]);
             }
+            foreach ($part['items'] as $item) $section->addListItem($item, 0, [], 'cvBullet', ['spaceBefore' => 40]);
         }
 
-        if (! empty($content['projects'])) {
-            $this->heading($left, 'PROJECT EXPERIENCE');
-            foreach ($content['projects'] as $project) {
-                $left->addText($project['title'], ['bold' => true, 'size' => 9], ['spaceBefore' => 55, 'spaceAfter' => 20]);
-                $left->addText($project['description'], [], ['spaceAfter' => 20]);
-                if (! empty($project['technologies'])) {
-                    $left->addText('Technologies: '.collect($project['technologies'])->join(', '), ['italic' => true, 'size' => 8, 'color' => '4B5563'], ['spaceAfter' => 80]);
-                }
-            }
-        }
-
-        if (! empty($content['skills'])) {
-            $this->heading($right, 'SKILLS');
-            foreach ($content['skills'] as $skill) {
-                $right->addListItem($skill, 0, ['size' => 8.5], ['spaceAfter' => 25]);
-            }
-        }
-
-        if (! empty($content['education'])) {
-            $this->heading($right, 'EDUCATION');
-            foreach ($content['education'] as $education) {
-                $right->addText($education['qualification'], ['bold' => true, 'size' => 9], ['spaceAfter' => 20]);
-                $right->addText(collect([$education['institution'], $education['period']])->filter()->join(' | '), ['size' => 8, 'color' => '4B5563'], ['spaceAfter' => 80]);
-                if (!empty($education['details'])) $right->addText($education['details'], ['size'=>8], ['spaceAfter'=>80]);
-            }
-        }
-
-        if (! empty($content['certifications'])) {
-            $this->heading($right, 'CERTIFICATIONS');
-            foreach ($content['certifications'] as $certification) {
-                $right->addListItem(collect([$certification['title'], $certification['issuer'], $certification['issueDate']])->filter()->join(' | '), 0, ['size' => 8.5], ['spaceAfter' => 35]);
-            }
-        }
-
-        if (! empty($content['assessments'])) {
-            $this->heading($right, 'ASSESSMENTS');
-            foreach ($content['assessments'] as $assessment) {
-                $right->addListItem(collect([$assessment['title'], $assessment['percentage'].'%', $assessment['completedAt']])->filter()->join(' | '), 0, ['size' => 8.5], ['spaceAfter' => 35]);
-            }
-        }
-
-        if (! empty($content['additional'])) {
-            $this->heading($right, 'ADDITIONAL INFORMATION');
-            $right->addText($content['additional'], [], ['spaceAfter' => 80]);
-        }
         $path = $this->path($cv, 'docx');
         $absolutePath = Storage::disk('local')->path($path);
         if (! is_dir(dirname($absolutePath))) {
@@ -112,16 +66,6 @@ class CvExportService
         $phpWord->save($absolutePath, 'Word2007');
 
         return $absolutePath;
-    }
-
-    private function heading($container, string $title): void
-    {
-        $container->addText($title, ['bold' => true, 'size' => 9, 'color' => '111827'], [
-            'borderBottomSize' => 8,
-            'borderBottomColor' => '111827',
-            'spaceBefore' => 90,
-            'spaceAfter' => 60,
-        ]);
     }
 
     private function path(GeneratedCv $cv, string $extension): string

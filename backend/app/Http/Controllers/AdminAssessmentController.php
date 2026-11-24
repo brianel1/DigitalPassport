@@ -15,7 +15,6 @@ class AdminAssessmentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
         $items = Assessment::withCount('questions')->latest()->get()->map(fn (Assessment $assessment) => $this->data($assessment));
 
         return response()->json(['data' => $items]);
@@ -23,7 +22,6 @@ class AdminAssessmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
         $validated = $request->validate([
             'skill_names' => ['sometimes', 'array', 'max:20'],
             'skill_names.*' => ['string', 'max:100', 'distinct'],
@@ -50,7 +48,6 @@ class AdminAssessmentController extends Controller
 
     public function destroy(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
         $this->ensureEditable($assessment);
         $assessment->delete();
 
@@ -59,7 +56,6 @@ class AdminAssessmentController extends Controller
 
     public function update(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
         $this->ensureEditable($assessment);
         $validated = $request->validate([
             'skill_names' => ['sometimes', 'array', 'max:20'],
@@ -88,7 +84,6 @@ class AdminAssessmentController extends Controller
      */
     public function togglePublish(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
 
         if (!$assessment->is_published && $assessment->questions()->count() === 0) {
             return response()->json(['message' => 'Cannot publish an assessment with no questions.'], 422);
@@ -113,7 +108,6 @@ class AdminAssessmentController extends Controller
      */
     public function show(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
         $assessment->loadCount('questions');
 
         return response()->json([
@@ -134,7 +128,6 @@ class AdminAssessmentController extends Controller
      */
     public function storeQuestion(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
         $this->ensureEditable($assessment);
         $validated = $request->validate([
             'question' => ['required', 'string', 'max:1000'],
@@ -175,7 +168,6 @@ class AdminAssessmentController extends Controller
      */
     public function updateQuestion(Request $request, Assessment $assessment, AssessmentQuestion $question): JsonResponse
     {
-        $this->ensureAdmin($request);
         $this->ensureEditable($assessment);
         abort_unless($question->assessment_id === $assessment->id, 404);
 
@@ -215,17 +207,11 @@ class AdminAssessmentController extends Controller
      */
     public function destroyQuestion(Request $request, Assessment $assessment, AssessmentQuestion $question): JsonResponse
     {
-        $this->ensureAdmin($request);
         $this->ensureEditable($assessment);
         abort_unless($question->assessment_id === $assessment->id, 404);
         $question->delete();
 
         return response()->json(['message' => 'Question deleted successfully.']);
-    }
-
-    private function ensureAdmin(Request $request): void
-    {
-        abort_unless($request->user()->role === 'admin', 403, 'Administrator access is required.');
     }
 
     private function ensureEditable(Assessment $assessment): void
@@ -235,7 +221,6 @@ class AdminAssessmentController extends Controller
 
     public function newVersion(Request $request, Assessment $assessment): JsonResponse
     {
-        $this->ensureAdmin($request);
         $copy = DB::transaction(function () use ($assessment, $request) {
             $root = $assessment->parent_assessment_id ?? $assessment->id;
             Assessment::whereKey($root)->lockForUpdate()->firstOrFail();
